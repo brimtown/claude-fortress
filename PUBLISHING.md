@@ -1,4 +1,4 @@
-# 📦 Publishing Guide - Dwarf Fortress Canvas
+# 📦 Publishing Guide - Claude Fortress
 
 ## Getting This Out There So Other Claudes Can Play! 🎮
 
@@ -15,10 +15,10 @@
 
 1. **Create new repo:**
 ```bash
-cd /Users/timbrown/Development/Web/dwarf-fortress-canvas
+cd /Users/timbrown/Development/Web/claude-fortress
 git init
 git add .
-git commit -m "Initial commit: Dwarf Fortress Canvas for Claude Code
+git commit -m "Initial commit: Claude Fortress for Claude Code
 
 - Real-time ASCII fortress simulation
 - Natural language command system via IPC
@@ -30,7 +30,7 @@ git commit -m "Initial commit: Dwarf Fortress Canvas for Claude Code
 2. **Push to GitHub:**
 ```bash
 # Create repo on GitHub first (github.com/new)
-git remote add origin https://github.com/YOUR_USERNAME/dwarf-fortress-canvas.git
+git remote add origin https://github.com/YOUR_USERNAME/claude-fortress.git
 git branch -M main
 git push -u origin main
 ```
@@ -61,7 +61,7 @@ Package as a plugin for the canvas marketplace.
 - Clear installation instructions
 
 #### Option 3: NPM Package (Future)
-`npx dwarf-fortress-canvas` to install everything.
+`npx claude-fortress` to install everything.
 
 **Pros**: One-command install
 **Cons**: More setup
@@ -142,8 +142,8 @@ Simple, permissive, encourages remixing.
 **Test on fresh machine:**
 ```bash
 # Clone
-git clone https://github.com/YOU/dwarf-fortress-canvas.git
-cd dwarf-fortress-canvas/canvas
+git clone https://github.com/YOU/claude-fortress.git
+cd claude-fortress/canvas
 
 # Install
 bun install  # Should work out of box

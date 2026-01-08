@@ -1,4 +1,4 @@
-# Dwarf Fortress Canvas - Developer Notes
+# Claude Fortress - Developer Notes
 
 **Last Updated**: 2026-01-08
 **Status**: ✅ WORKING - Movement, jobs, IPC queries, autonomous debugging!
@@ -9,7 +9,7 @@
 
 ```bash
 # 1. Navigate to canvas directory
-cd /Users/timbrown/Development/Web/dwarf-fortress-canvas/canvas
+cd /Users/timbrown/Development/Web/claude-fortress/canvas
 
 # 2. Clean up any old processes
 pkill -f "canvas-fortress"; rm -f /tmp/canvas-*.sock
@@ -153,7 +153,7 @@ canvas/src/
 
 ### 1. Spawning the Fortress
 ```bash
-cd /Users/timbrown/Development/Web/dwarf-fortress-canvas/canvas
+cd /Users/timbrown/Development/Web/claude-fortress/canvas
 ~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"ClawdeFort","save":true}'
 ```
 
@@ -388,7 +388,7 @@ Features that enhance emergent stories:
 ## 🎯 How to Resume Development
 
 ### Starting Fresh Session
-1. **Navigate to canvas dir**: `cd /Users/timbrown/Development/Web/dwarf-fortress-canvas/canvas`
+1. **Navigate to canvas dir**: `cd /Users/timbrown/Development/Web/claude-fortress/canvas`
 2. **Ensure Bun installed**: `~/.bun/bin/bun --version`
 3. **Clean up any orphaned processes**: `pkill -9 -f "canvas-fortress"; rm -f /tmp/canvas-*.sock /tmp/claude-canvas-pane-id`
 4. **Test spawn**: `~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"Test","save":false}'`
@@ -606,7 +606,7 @@ This was a collaboration between human creativity and AI implementation. The ide
 
 ```bash
 # Spawn fortress
-cd /Users/timbrown/Development/Web/dwarf-fortress-canvas/canvas
+cd /Users/timbrown/Development/Web/claude-fortress/canvas
 ~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"NAME","save":true}'
 
 # Send commands
