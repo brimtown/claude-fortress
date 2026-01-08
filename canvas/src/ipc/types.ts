@@ -6,7 +6,8 @@ export type ControllerMessage =
   | { type: "update"; config: unknown }
   | { type: "ping" }
   | { type: "getSelection" }
-  | { type: "getContent" };
+  | { type: "getContent" }
+  | { type: "command"; command: unknown }; // For fortress commands
 
 // Messages sent from Canvas to Controller (Claude)
 export type CanvasMessage =
