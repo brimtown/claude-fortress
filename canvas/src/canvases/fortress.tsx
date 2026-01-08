@@ -87,6 +87,38 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                 }
                 return newState;
               });
+            } else if (msg.type === "getState") {
+              // Send current state back to querying client
+              if (ipcServer) {
+                ipcServer.broadcast({ type: "state", data: state });
+              }
+            } else if (msg.type === "getSummary") {
+              // Send lightweight summary (no map data)
+              if (ipcServer) {
+                const summary = {
+                  tick: state.tick,
+                  year: state.year,
+                  season: state.season,
+                  paused: state.paused,
+                  resources: state.resources,
+                  dwarves: state.dwarves.map(d => ({
+                    id: d.id,
+                    name: d.name,
+                    x: d.x,
+                    y: d.y,
+                    labor: d.labor,
+                    hunger: d.hunger,
+                    thirst: d.thirst,
+                    happiness: d.happiness,
+                    currentJob: d.currentJob,
+                    currentTask: d.currentTask,
+                  })),
+                  jobs: state.jobs,
+                  buildings: state.buildings,
+                  events: state.events.slice(-10), // Last 10 events only
+                };
+                ipcServer.broadcast({ type: "state", data: summary });
+              }
             } else if (msg.type === "close") {
               exit();
             }
