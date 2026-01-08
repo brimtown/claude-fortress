@@ -45,6 +45,12 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
             // Without this, nextEventId resets to 0 but loaded events have IDs in thousands
             // React crashes with "Encountered two children with the same key" error
             restoreEventIdCounter(loadedState.events);
+
+            // Ensure new fields exist (for backwards compat with old saves)
+            if (!loadedState.jobs) {
+              loadedState.jobs = [];
+            }
+
             setState(loadedState);
             console.log(`Loaded fortress "${fortressName}" from save`);
           } else {
@@ -182,8 +188,14 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         // Check if there's a dwarf at this position
         const dwarfHere = state.dwarves.find((d) => d.x === x && d.y === y);
 
+        // Check if there's a dig designation here
+        const digJob = state.jobs.find((j) => j.type === "dig" && j.x === x && j.y === y);
+
         if (dwarfHere) {
           line += "☺";
+        } else if (digJob && tile.type === "wall") {
+          // Show designated wall with 'd' marker
+          line += "d";
         } else {
           line += getTileChar(tile);
         }
@@ -236,6 +248,8 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           Food: <Text color="yellow">{state.resources.food}</Text>
           {"  "}
           Drink: <Text color="cyan">{state.resources.drink}</Text>
+          {"  "}
+          Jobs: <Text color="magenta">{state.jobs.length}</Text>
         </Text>
       </Box>
 
@@ -252,19 +266,51 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         </Text>
       </Box>
 
-      {/* Map View */}
-      <Box
-        borderStyle="single"
-        borderColor="white"
-        flexDirection="column"
-        paddingX={1}
-        height={22}
-      >
-        {mapLines.map((line, i) => (
-          <Text key={i} dimColor={i % 2 === 0}>
-            {line}
-          </Text>
-        ))}
+      {/* Main content - Map and Legend side by side */}
+      <Box flexDirection="row">
+        {/* Map View */}
+        <Box
+          borderStyle="single"
+          borderColor="white"
+          flexDirection="column"
+          paddingX={1}
+          height={22}
+        >
+          {mapLines.map((line, i) => (
+            <Text key={i} dimColor={i % 2 === 0}>
+              {line}
+            </Text>
+          ))}
+        </Box>
+
+        {/* Legend */}
+        <Box
+          borderStyle="single"
+          borderColor="cyan"
+          flexDirection="column"
+          paddingX={1}
+          marginLeft={1}
+          height={22}
+          width={30}
+        >
+          <Text bold>MAP</Text>
+          <Text dimColor>☺=Dwarf #=Wall</Text>
+          <Text dimColor>.=Floor ~=Water</Text>
+          <Text dimColor>^=Tree  X=Workshop</Text>
+          <Text dimColor color="yellow">d=Dig job</Text>
+          <Text> </Text>
+          <Text bold>KEYS</Text>
+          <Text dimColor>p=pause s=save</Text>
+          <Text dimColor>q=quit</Text>
+          <Text> </Text>
+          <Text bold>WORKERS</Text>
+          <Text dimColor>Jobs: {state.jobs.length}</Text>
+          {state.dwarves.filter(d => d.currentJob).slice(0, 5).map(d => (
+            <Text key={d.id} dimColor>
+              {d.name.split(' ')[0]}
+            </Text>
+          ))}
+        </Box>
       </Box>
 
       {/* Recent Events */}

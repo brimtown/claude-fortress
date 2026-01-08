@@ -5,6 +5,7 @@ import type {
   Building,
   Season,
   Tile,
+  Labor,
 } from "../../scenarios/fortress/types";
 import { generateMap, MAP_WIDTH, MAP_HEIGHT } from "./map";
 import { createStartingDwarves, updateDwarfNeeds, createDwarf } from "./dwarf";
@@ -15,6 +16,8 @@ import {
   getBuildingCost,
 } from "./resources";
 import { createEvent, trimEvents, EventMessages } from "./events";
+import { updateAllDwarfMovement } from "./movement";
+import { updateJobs, createDigJob, createBuildJob } from "./jobs";
 
 let nextBuildingId = 0;
 
@@ -27,6 +30,7 @@ export function createInitialState(fortressName: string, seed?: number): Fortres
     dwarves: createStartingDwarves(),
     resources: createStartingResources(),
     buildings: [],
+    jobs: [],
     events: [
       createEvent(0, `Welcome to ${fortressName}!`, "success"),
       createEvent(0, "The fortress is established. Strike the earth!", "info"),
@@ -45,6 +49,12 @@ export function processTick(state: FortressState): void {
   if (state.paused) return;
 
   state.tick++;
+
+  // Update job assignments and work progress
+  updateJobs(state);
+
+  // Update dwarf movement (paths to jobs, wanders when idle)
+  updateAllDwarfMovement(state);
 
   // Update dwarf needs
   for (const dwarf of state.dwarves) {
@@ -85,11 +95,14 @@ export function processTick(state: FortressState): void {
   // Random events (low probability)
   const rand = Math.random();
 
-  // 1% chance of migrant wave
-  if (rand < 0.01) {
+  // 0.1% chance of migrant wave (~once every 500 ticks / 4 minutes)
+  if (rand < 0.001) {
     const count = 1 + Math.floor(Math.random() * 3); // 1-3 migrants
+    const labors: Labor[] = ["mining", "carpentry", "brewing", "farming", "hauling"];
     for (let i = 0; i < count; i++) {
-      const newDwarf = createDwarf(5, 3);
+      // Give migrants random useful labors
+      const labor = labors[Math.floor(Math.random() * labors.length)];
+      const newDwarf = createDwarf(5, 3, labor);
       state.dwarves.push(newDwarf);
     }
     state.events.push(
@@ -173,14 +186,35 @@ export function handleCommand(state: FortressState, command: FortressCommand): b
 }
 
 /**
- * Handle dig command - designate area for mining
+ * Check if a wall tile is accessible (adjacent to floor)
+ */
+function isAccessible(state: FortressState, x: number, y: number): boolean {
+  const directions = [
+    [-1, 0], [1, 0], [0, -1], [0, 1],  // cardinal
+    [-1, -1], [1, -1], [-1, 1], [1, 1]  // diagonal
+  ];
+
+  for (const [dx, dy] of directions) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
+
+    const neighbor = state.map[ny]?.[nx];
+    if (neighbor?.type === "floor") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Handle dig command - designate area for mining (creates jobs for miners)
  */
 function handleDigCommand(
   state: FortressState,
   area: { x: number; y: number; width: number; height: number }
 ): boolean {
-  let dugCount = 0;
-  let resourcesFound: string[] = [];
+  let jobsCreated = 0;
 
   for (let dy = 0; dy < area.height; dy++) {
     for (let dx = 0; dx < area.width; dx++) {
@@ -189,32 +223,29 @@ function handleDigCommand(
 
       if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) continue;
 
-      const tile = state.map[y][x];
+      const row = state.map[y];
+      if (!row) continue;
 
-      if (tile.type === "wall" && !tile.dug) {
-        tile.type = "floor";
-        tile.dug = true;
-        dugCount++;
+      const tile = row[x];
+      if (!tile) continue;
 
-        // Add stone resource
-        state.resources.stone += 1;
-
-        // Check for special resources
-        if (tile.resource) {
-          resourcesFound.push(tile.resource);
-          state.events.push(
-            createEvent(state.tick, EventMessages.miningComplete(x, y, tile.resource), "success")
-          );
+      // Only create job for wall tiles that are accessible and haven't been dug
+      if (tile.type === "wall" && !tile.dug && isAccessible(state, x, y)) {
+        // Check if there's already a dig job here
+        const existingJob = state.jobs.find(j => j.type === "dig" && j.x === x && j.y === y);
+        if (!existingJob) {
+          state.jobs.push(createDigJob(x, y));
+          jobsCreated++;
         }
       }
     }
   }
 
-  if (dugCount > 0) {
+  if (jobsCreated > 0) {
     state.events.push(
       createEvent(
         state.tick,
-        `Designated ${area.width}x${area.height} area for mining`,
+        `Designated ${jobsCreated} tiles for mining`,
         "info"
       )
     );

@@ -29,7 +29,20 @@ export interface Dwarf {
   energy: number;      // 0-100, lower = more tired
   labor: Labor;
   currentTask?: string;
+  currentJob?: Job;    // The job this dwarf is actively working on
   happiness: number;   // 0-100, higher = happier
+}
+
+export interface Job {
+  id: number;
+  type: "dig" | "build" | "haul";
+  x: number;
+  y: number;
+  progress: number;    // 0-100, work done on this job
+  requiredLabor: Labor;
+  assignedDwarfId?: number;
+  buildingType?: "workshop" | "stockpile" | "bed";
+  buildingSubtype?: string;
 }
 
 export interface Resources {
@@ -64,6 +77,7 @@ export interface FortressState {
   dwarves: Dwarf[];
   resources: Resources;
   buildings: Building[];
+  jobs: Job[];          // Pending work designations
   events: GameEvent[];
   tick: number;
   year: number;
