@@ -1,23 +1,116 @@
 # Dwarf Fortress Canvas - Developer Notes
 
 **Last Updated**: 2026-01-08
-**Status**: ✅ MVP WORKING - Canvas spawns reliably, simulation runs, IPC commands work!
+**Status**: ✅ WORKING - Movement, jobs, IPC queries, autonomous debugging!
 
-## 🚀 Quick Start (TL;DR)
+## 🚀 Quick Start for New Sessions
+
+**Get running in 30 seconds:**
 
 ```bash
-# Clean slate
-pkill -f "canvas-fortress"; rm -f /tmp/canvas-*.sock /tmp/claude-canvas-pane-id
-
-# Spawn fortress
+# 1. Navigate to canvas directory
 cd /Users/timbrown/Development/Web/dwarf-fortress-canvas/canvas
-~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"Test","save":false}'
 
-# Send command (after socket appears in 2-3 seconds)
-echo '{"type":"command","command":{"type":"dig","area":{"x":15,"y":8,"width":5,"height":5}}}' | nc -U /tmp/canvas-fortress-1.sock
+# 2. Clean up any old processes
+pkill -f "canvas-fortress"; rm -f /tmp/canvas-*.sock
 
-# Kill fortress: press 'q' in fortress pane
+# 3. Spawn a fortress
+~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"DevSession","save":false}'
+
+# 4. Verify it's running (wait 2-3 seconds for socket)
+ls /tmp/canvas-fortress-1.sock
+
+# 5. Query state to see what's happening
+echo '{"type":"getSummary"}' | nc -U /tmp/canvas-fortress-1.sock | python3 -m json.tool
+
+# 6. Send a dig command to test
+echo '{"type":"command","command":{"type":"dig","area":{"x":12,"y":2,"width":5,"height":3}}}' | nc -U /tmp/canvas-fortress-1.sock
+
+# 7. Check miners are working
+echo '{"type":"getSummary"}' | nc -U /tmp/canvas-fortress-1.sock | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(f'Jobs: {len(d[\"jobs\"])}, Workers: {len([dw for dw in d[\"dwarves\"] if dw.get(\"currentJob\")])}');"
 ```
+
+**You should see:** Fortress in tmux pane, miners walking to dig sites, tiles changing from `#` to `.`, stone resource increasing.
+
+## 🔍 IPC Query System (PRIMARY DEBUGGING TOOL)
+
+**This is how you debug without screenshots!**
+
+### Quick Queries
+
+```bash
+# Get lightweight summary (RECOMMENDED - fits in buffer)
+echo '{"type":"getSummary"}' | nc -U /tmp/canvas-fortress-1.sock | python3 -m json.tool
+
+# Full state with map (WARNING: 8KB+, may truncate)
+echo '{"type":"getState"}' | nc -U /tmp/canvas-fortress-1.sock
+
+# Check specific things
+echo '{"type":"getSummary"}' | nc ... | python3 -c "
+import sys, json
+d = json.load(sys.stdin)['data']
+print(f'Tick: {d[\"tick\"]}')
+print(f'Jobs: {len(d[\"jobs\"])} pending')
+print(f'Workers: {len([dw for dw in d[\"dwarves\"] if dw.get(\"currentJob\")])} active')
+print(f'Stone: {d[\"resources\"][\"stone\"]}')
+"
+```
+
+### What getSummary Returns
+
+```json
+{
+  "type": "state",
+  "data": {
+    "tick": 123,
+    "year": 251,
+    "season": "Spring",
+    "resources": {"wood": 20, "stone": 45, "food": 85, "drink": 57},
+    "dwarves": [{
+      "id": 0,
+      "name": "Urist McDigger",
+      "x": 5, "y": 3,
+      "labor": "mining",
+      "hunger": 45, "thirst": 52, "happiness": 65,
+      "currentJob": {"type": "dig", "x": 12, "y": 5, "progress": 60}
+    }],
+    "jobs": [{"type": "dig", "x": 12, "y": 5, "progress": 60, "assignedDwarfId": 0}],
+    "buildings": [],
+    "events": [{"message": "Designated 5 tiles for mining", ...}]
+  }
+}
+```
+
+### Debugging Workflow
+
+```bash
+# 1. Send a command
+echo '{"type":"command","command":{"type":"dig",...}}' | nc -U /tmp/canvas-fortress-1.sock
+
+# 2. Immediately verify it worked
+echo '{"type":"getSummary"}' | nc ... | grep jobs
+# Expected: Should show new jobs created
+
+# 3. Wait a few ticks, check progress
+sleep 5 && echo '{"type":"getSummary"}' | nc ... | python3 -c "
+import sys, json
+d = json.load(sys.stdin)['data']
+for job in d['jobs'][:5]:
+    print(f'Job at ({job[\"x\"]},{job[\"y\"]}): {job[\"progress\"]}% complete')
+"
+
+# 4. Debug why miners aren't working
+echo '{"type":"getSummary"}' | nc ... | python3 -c "
+import sys, json
+d = json.load(sys.stdin)['data']
+for dw in d['dwarves']:
+    if dw.get('currentJob'):
+        job = dw['currentJob']
+        print(f'{dw[\"name\"]}: at ({dw[\"x\"]},{dw[\"y\"]}) working on ({job[\"x\"]},{job[\"y\"]})')
+"
+```
+
+**Key insight:** You can now verify every change programmatically instead of asking for screenshots!
 
 ## 🎉 What We Built
 
@@ -160,35 +253,137 @@ spawn("tmux", ["send-keys", "-t", paneId, `bash ${wrapperScript}`, "Enter"]);
 - ✅ Happiness system based on needs
 - ✅ Event log with DF-style messages
 
-## 📝 TODOs & Future Improvements
+## ⚡ Dev Workflow - Fast Iteration Cycle
 
-### High Priority (Core Functionality)
-- [ ] **Test build command** - verify workshops actually appear on map
-- [ ] **Test assign command** - verify dwarf labor actually changes
-- [ ] **Map tile updates** - ensure dug tiles show as `.` not `#`
-- [ ] **Resource validation** - prevent building without enough resources
-- [ ] **Better error messages** - show user why command failed
+**The workflow that emerged from this session:**
 
-### Medium Priority (UX)
-- [ ] **Dwarf movement** - make dwarves walk to work sites (visual only)
-- [ ] **Building rendering** - show `X` for workshops, `≈` for stockpiles
-- [ ] **Highlight recent digs** - flash newly dug tiles briefly
-- [ ] **Resource warnings** - auto-warn when food/drink <20
-- [ ] **Tick rate control** - let user adjust simulation speed
+```bash
+# 1. Make code changes in your editor (Bun hot-reloads TypeScript!)
 
-### Low Priority (Polish)
-- [ ] **Production chains** - brewers actually make drink, carpenters make beds
-- [ ] **Workshop functionality** - workshops produce resources over time
-- [ ] **Multiple Z-levels** - add basement/upper floors
-- [ ] **Threats** - sieges, cave-ins (narrative only)
-- [ ] **Trading** - caravans every N ticks
+# 2. Kill current fortress
+pkill -f "canvas-fortress"  # Or press 'q' in fortress pane
 
-### Canvas Plugin Integration
-- [x] **Fix tmux spawn** - fixed stdin attachment issue (2026-01-08)
-- [x] **Fix React duplicate keys** - restore event ID counter on load (2026-01-08)
-- [ ] **Socket cleanup** - remove stale sockets on canvas exit
-- [ ] **Better error handling** - catch IPC failures gracefully
-- [ ] **State subscription** - let Claude read fortress state via IPC (not just send commands)
+# 3. Respawn immediately (reuses tmux pane)
+/usr/local/bin/tmux send-keys -t %29 "bash /tmp/canvas-spawn-fortress-1.sh" Enter
+
+# 4. Verify it worked
+sleep 2 && ls /tmp/canvas-fortress-1.sock  # Socket exists?
+
+# 5. Test your changes with IPC
+echo '{"type":"getSummary"}' | nc -U /tmp/canvas-fortress-1.sock | python3 -m json.tool
+
+# 6. Send commands to test behavior
+echo '{"type":"command","command":{"type":"dig","area":{"x":12,"y":2,"width":5,"height":3}}}' | nc -U /tmp/canvas-fortress-1.sock
+
+# 7. Query again to verify
+echo '{"type":"getSummary"}' | nc -U /tmp/canvas-fortress-1.sock | grep jobs
+```
+
+**Key insights:**
+- No need to kill tmux pane, just the process
+- Wrapper script stays at `/tmp/canvas-spawn-fortress-1.sh`
+- Socket recreates automatically
+- Query immediately after commands to debug
+- Cycle time: ~5 seconds from code change to verification
+
+## 📝 Feature TODOs & Future Work
+
+### 🎯 Skill System (High Priority)
+Make this a proper Claude Code skill instead of raw bash commands:
+
+- [ ] **Skill command wrappers** - `/dig 15 8 5 5` instead of JSON blobs
+  - `/dig <x> <y> <width> <height>` - Designate dig area
+  - `/build <type> <x> <y>` - Build workshop/bed/stockpile
+  - `/assign <dwarf> <labor>` - Change dwarf's job
+  - `/query` - Show fortress status (calls getSummary)
+  - `/pause` / `/unpause` - Control simulation
+- [ ] **Natural language parsing** - "Dig out a 10x10 hall at coordinates 15,8"
+- [ ] **Skill help system** - `/fortress help` shows available commands
+- [ ] **Error feedback** - Nice error messages instead of failed nc calls
+- [ ] **Command history** - Track what commands were sent for debugging
+
+### 🎨 Visual Improvements (Medium Priority)
+Make the fortress prettier and easier to read:
+
+- [ ] **Color-coded tiles** - Different colors for different tile types
+  - Walls: dark gray
+  - Floor: light gray
+  - Designated tiles: yellow `d`
+  - Water: blue `~`
+  - Trees: green `^`
+  - Ore veins: colored by type (gold=yellow, iron=gray)
+- [ ] **Dwarf indicators** - Show what dwarves are doing
+  - `☼` = working on job
+  - `☺` = idle/walking
+  - `≈` = eating/drinking
+  - Color by mood (happy=green, unhappy=red)
+- [ ] **Progress bars** - Show job completion visually
+  - `[####....] 40%` next to active jobs
+- [ ] **Mini-map** - Small overview showing full fortress layout
+- [ ] **Event log colors** - Color events by type (success=green, danger=red)
+- [ ] **Resource trend indicators** - ↑↓ arrows showing resource changes
+
+### 🏗️ Fun Subsystems to Flesh Out
+Core gameplay mechanics that would make it feel more like DF:
+
+- [ ] **Death system** - Dwarves actually die from starvation/dehydration
+  - Corpses appear on map (`X`)
+  - Ghost haunting chance if unhappy death
+  - Memorial engravings for legendary dwarves
+- [ ] **Workshop production** - Workshops actually produce items over time
+  - Still produces drink from plants
+  - Carpenter produces beds/barrels from wood
+  - Smelter produces metal bars from ore
+  - Production jobs assigned like dig jobs
+- [ ] **Hauling system** - Items need to be moved to stockpiles
+  - Resources have locations on map
+  - Haulers pathfind to pick up and deliver
+  - Stockpiles show inventory counts
+- [ ] **Room system** - Rooms have quality ratings
+  - Bedrooms assigned to dwarves
+  - Dining halls for eating
+  - Room quality affects happiness
+- [ ] **Needs beyond hunger/thirst** - More dwarf personality
+  - Sleep (need beds)
+  - Alcohol preference (unhappy without drink)
+  - Socialization (need dining halls/meeting areas)
+  - Art appreciation (engravings, statues)
+- [ ] **Military basics** - Defense against threats
+  - Squads of soldier dwarves
+  - Training grounds
+  - Equipment (weapons/armor)
+  - Simple goblin sieges (narrative events)
+- [ ] **Z-levels** - Multiple floors
+  - Stairs/ramps to connect levels
+  - Surface, underground, caverns
+  - Different resources per depth
+- [ ] **Temperature/Seasons** - Environmental effects
+  - Rivers freeze in winter
+  - Crops grow in spring/summer
+  - Magma for forges (deep levels)
+
+### 🛠️ Technical Improvements (Low Priority)
+Infrastructure and quality of life:
+
+- [ ] **Faster pathfinding** - A* instead of simple adjacency
+- [ ] **Tick rate controls** - Speed up/slow down simulation
+- [ ] **Faster save/load** - Compress saves, lazy load map
+- [ ] **Multiple fortress management** - Run several fortresses simultaneously
+- [ ] **Replay system** - Record and playback fortress history
+- [ ] **Web dashboard** - View fortress in browser alongside CLI
+- [ ] **Automated testing** - Unit tests for job system, pathfinding, etc.
+- [ ] **Performance profiling** - Optimize tick processing for larger fortresses
+
+### 🎭 Narrative & Storytelling
+Features that enhance emergent stories:
+
+- [ ] **Dwarf relationships** - Friends, rivals, marriages
+- [ ] **Personality traits** - Lazy, hardworking, artistic, violent
+- [ ] **Legendary artifacts** - Rare masterwork creations
+- [ ] **Historical events** - Track fortress timeline
+- [ ] **Engraved records** - Dwarves carve history into walls
+- [ ] **Tavern visitors** - Bards, merchants, performers
+- [ ] **Strange moods** - Dwarves create artifacts or go berserk
 
 ## 🎯 How to Resume Development
 
