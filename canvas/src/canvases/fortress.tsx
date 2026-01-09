@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import type {
   FortressConfig,
@@ -33,6 +33,10 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     }
     return createInitialState(fortressName, config?.seed);
   });
+
+  // Ref to always have current state in IPC callbacks (fixes stale closure bug)
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   // Load from save file on mount (if config.save is true)
   useEffect(() => {
@@ -89,21 +93,24 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
               });
             } else if (msg.type === "getState") {
               // Send current state back to querying client
+              // Use stateRef.current to avoid stale closure bug
               if (ipcServer) {
-                ipcServer.broadcast({ type: "state", data: state });
+                ipcServer.broadcast({ type: "state", data: stateRef.current });
               }
             } else if (msg.type === "getSummary") {
               // Send lightweight summary (no map data, minimal tokens)
+              // Use stateRef.current to avoid stale closure bug
               if (ipcServer) {
+                const currentState = stateRef.current;
                 const summary = {
-                  tick: state.tick,
-                  year: state.year,
-                  season: state.season,
-                  paused: state.paused,
-                  resources: state.resources,
-                  dwarfCount: state.dwarves.length,
-                  activeJobs: state.jobs.length,
-                  recentEvents: state.events.slice(-3), // Last 3 events only for token efficiency
+                  tick: currentState.tick,
+                  year: currentState.year,
+                  season: currentState.season,
+                  paused: currentState.paused,
+                  resources: currentState.resources,
+                  dwarfCount: currentState.dwarves.length,
+                  activeJobs: currentState.jobs.length,
+                  recentEvents: currentState.events.slice(-3), // Last 3 events only for token efficiency
                 };
                 ipcServer.broadcast({ type: "state", data: summary });
               }
