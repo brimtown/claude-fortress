@@ -85,6 +85,18 @@ export interface FortressState {
   paused: boolean;
 }
 
+// Lightweight summary for token-efficient polling (excludes map, minimizes dwarves)
+export interface FortressSummary {
+  tick: number;
+  year: number;
+  season: Season;
+  paused: boolean;
+  resources: Resources;
+  dwarfCount: number;
+  activeJobs: number;
+  recentEvents: GameEvent[];  // Last 3-5 events only
+}
+
 // Command types that Claude can send via IPC
 export type FortressCommand =
   | { type: "dig"; area: { x: number; y: number; width: number; height: number } }

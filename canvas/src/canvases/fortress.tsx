@@ -93,7 +93,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                 ipcServer.broadcast({ type: "state", data: state });
               }
             } else if (msg.type === "getSummary") {
-              // Send lightweight summary (no map data)
+              // Send lightweight summary (no map data, minimal tokens)
               if (ipcServer) {
                 const summary = {
                   tick: state.tick,
@@ -101,21 +101,9 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   season: state.season,
                   paused: state.paused,
                   resources: state.resources,
-                  dwarves: state.dwarves.map(d => ({
-                    id: d.id,
-                    name: d.name,
-                    x: d.x,
-                    y: d.y,
-                    labor: d.labor,
-                    hunger: d.hunger,
-                    thirst: d.thirst,
-                    happiness: d.happiness,
-                    currentJob: d.currentJob,
-                    currentTask: d.currentTask,
-                  })),
-                  jobs: state.jobs,
-                  buildings: state.buildings,
-                  events: state.events.slice(-10), // Last 10 events only
+                  dwarfCount: state.dwarves.length,
+                  activeJobs: state.jobs.length,
+                  recentEvents: state.events.slice(-3), // Last 3 events only for token efficiency
                 };
                 ipcServer.broadcast({ type: "state", data: summary });
               }
