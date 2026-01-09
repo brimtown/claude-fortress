@@ -94,12 +94,17 @@ async function createNewPane(wrapperScript: string): Promise<boolean> {
     // Use split-window -h for vertical split (side by side)
     // -p 67 gives canvas 2/3 width (1:2 ratio, Claude:Canvas)
     // -P -F prints the new pane ID so we can save it
+    // -t targets the pane that invoked the CLI (not the currently focused pane!)
 
     // CRITICAL: Don't pass command to split-window directly!
     // If you do: spawn("tmux", ["split-window", wrapperScript])
     // Ink will crash with "Raw mode not supported" because stdin isn't attached
     // Solution: Create empty pane first, THEN send command via send-keys
+    const sourcePaneId = process.env.TMUX_PANE;
     const args = ["split-window", "-h", "-p", "67", "-P", "-F", "#{pane_id}"];
+    if (sourcePaneId) {
+      args.splice(1, 0, "-t", sourcePaneId); // Insert -t <pane> after split-window
+    }
     const proc = spawn("tmux", args);
     let paneId = "";
     proc.stdout?.on("data", (data) => {
