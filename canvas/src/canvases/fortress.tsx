@@ -196,14 +196,19 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
   const mood = getDwarfMood(avgHappiness);
   const aliveDwarves = state.dwarves.length;
 
-  // Render map
+  // Dwarf colors - each dwarf gets their own color
+  const dwarfColors = ["cyan", "magenta", "yellow", "green", "blue", "red", "white"];
+
+  // Render map with colors
   const renderMap = () => {
-    const lines: string[] = [];
+    const lines: React.ReactNode[] = [];
 
     for (let y = 0; y < state.map.length; y++) {
-      let line = "";
-      for (let x = 0; x < state.map[y].length; x++) {
-        const tile = state.map[y][x];
+      const chars: React.ReactNode[] = [];
+
+      for (let x = 0; x < state.map[y]?.length || 0; x++) {
+        const tile = state.map[y]?.[x];
+        if (!tile) continue;
 
         // Check if there's a dwarf at this position
         const dwarfHere = state.dwarves.find((d) => d.x === x && d.y === y);
@@ -211,16 +216,62 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         // Check if there's a dig designation here
         const digJob = state.jobs.find((j) => j.type === "dig" && j.x === x && j.y === y);
 
+        let char = getTileChar(tile);
+        let color = "white";
+
         if (dwarfHere) {
-          line += "☺";
-        } else if (digJob && tile.type === "wall") {
-          // Show designated wall with 'd' marker
-          line += "d";
+          // Each dwarf gets their own color based on ID
+          color = dwarfColors[dwarfHere.id % dwarfColors.length];
+          // Face shows mood
+          if (dwarfHere.happiness < 30) {
+            char = "☹"; // Sad face
+          } else if (dwarfHere.happiness > 70) {
+            char = "☺"; // Happy face
+          } else {
+            char = "○"; // Neutral face
+          }
+        } else if (digJob && tile?.type === "wall") {
+          char = "d";
+          color = "yellow"; // Designated for digging
         } else {
-          line += getTileChar(tile);
+          // Color tiles by type
+          switch (tile?.type) {
+            case "wall":
+              color = tile.resource === "gold" ? "yellow" :
+                      tile.resource === "iron" ? "white" :
+                      tile.resource === "copper" ? "magenta" : "gray";
+              break;
+            case "floor":
+              color = "white";
+              break;
+            case "water":
+              color = "cyan"; // Brighter water
+              break;
+            case "tree":
+              color = "green";
+              break;
+            case "workshop":
+              color = "magenta";
+              break;
+            case "stockpile":
+              color = "blue";
+              break;
+            case "bed":
+              color = "yellow";
+              break;
+            default:
+              color = "white";
+          }
         }
+
+        chars.push(<Text key={`${y}-${x}`} color={color}>{char}</Text>);
       }
-      lines.push(line);
+
+      lines.push(
+        <Text key={y}>
+          {chars}
+        </Text>
+      );
     }
 
     return lines;
@@ -261,15 +312,15 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
       {/* Resources */}
       <Box paddingX={1} marginY={0}>
         <Text>
-          Wood: <Text color="green">{state.resources.wood}</Text>
+          Wood: <Text color={state.resources.wood > 50 ? "green" : state.resources.wood > 20 ? "yellow" : "red"}>{state.resources.wood}</Text>
           {"  "}
-          Stone: <Text color="gray">{state.resources.stone}</Text>
+          Stone: <Text color={state.resources.stone > 50 ? "white" : state.resources.stone > 20 ? "yellow" : "red"}>{state.resources.stone}</Text>
           {"  "}
-          Food: <Text color="yellow">{state.resources.food}</Text>
+          Food: <Text color={state.resources.food > 50 ? "green" : state.resources.food > 20 ? "yellow" : "red"}>{state.resources.food}</Text>
           {"  "}
-          Drink: <Text color="cyan">{state.resources.drink}</Text>
+          Drink: <Text color={state.resources.drink > 50 ? "cyan" : state.resources.drink > 20 ? "yellow" : "red"}>{state.resources.drink}</Text>
           {"  "}
-          Jobs: <Text color="magenta">{state.jobs.length}</Text>
+          Jobs: <Text color={state.jobs.length > 0 ? "magenta" : "gray"}>{state.jobs.length}</Text>
         </Text>
       </Box>
 
@@ -303,7 +354,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           ))}
         </Box>
 
-        {/* Legend */}
+        {/* Legend - Fixed height to prevent bouncing */}
         <Box
           borderStyle="single"
           borderColor="cyan"
@@ -313,23 +364,29 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           height={22}
           width={30}
         >
-          <Text bold>MAP</Text>
-          <Text dimColor>☺=Dwarf #=Wall</Text>
-          <Text dimColor>.=Floor ~=Water</Text>
-          <Text dimColor>^=Tree  X=Workshop</Text>
-          <Text dimColor color="yellow">d=Dig job</Text>
+          <Text bold color="cyan">MAP</Text>
+          <Text><Text color="cyan">☺</Text>=Happy <Text color="gray">#</Text>=Wall</Text>
+          <Text><Text color="yellow">○</Text>=Meh   <Text color="white">.</Text>=Floor</Text>
+          <Text><Text color="red">☹</Text>=Sad   <Text color="cyan">~</Text>=Water</Text>
+          <Text><Text color="green">^</Text>=Tree  <Text color="magenta">X</Text>=Workshop</Text>
+          <Text color="yellow">d=Dig job</Text>
           <Text> </Text>
-          <Text bold>KEYS</Text>
+          <Text bold color="cyan">KEYS</Text>
           <Text dimColor>p=pause s=save</Text>
           <Text dimColor>q=quit</Text>
           <Text> </Text>
-          <Text bold>WORKERS</Text>
-          <Text dimColor>Jobs: {state.jobs.length}</Text>
-          {state.dwarves.filter(d => d.currentJob).slice(0, 5).map(d => (
-            <Text key={d.id} dimColor>
-              {d.name.split(' ')[0]}
-            </Text>
-          ))}
+          <Text bold color="cyan">WORKERS</Text>
+          <Text>Jobs: <Text color={state.jobs.length > 0 ? "magenta" : "gray"}>{state.jobs.length}</Text></Text>
+          {/* Fixed 5 lines for workers - prevents bouncing */}
+          {Array.from({ length: 5 }).map((_, i) => {
+            const worker = state.dwarves.filter(d => d.currentJob)[i];
+            const workerColor = worker ? dwarfColors[worker.id % dwarfColors.length] : "gray";
+            return (
+              <Text key={i} color={workerColor}>
+                {worker ? `${worker.name.split(' ')[0]}` : ' '}
+              </Text>
+            );
+          })}
         </Box>
       </Box>
 
