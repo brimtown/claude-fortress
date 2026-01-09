@@ -409,11 +409,31 @@ Features that enhance emergent stories:
 ### Starting Fresh Session
 1. **Navigate to canvas dir**: `cd /Users/timbrown/Development/Web/claude-fortress/canvas`
 2. **Ensure Bun installed**: `~/.bun/bin/bun --version`
-3. **Clean up any orphaned processes**: `pkill -9 -f "canvas-fortress"; rm -f /tmp/canvas-*.sock /tmp/claude-canvas-pane-id`
-4. **Test spawn**: `~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"Test","save":false}'`
-5. **Verify pane appeared**: You should see a new tmux pane split to the right (67% width)
-6. **Check socket created** (after 2-3 seconds): `ls -la /tmp/canvas-fortress-1.sock`
-7. **Send test command**: `echo '{"type":"command","command":{"type":"pause","paused":true}}' | nc -U /tmp/canvas-fortress-1.sock`
+3. **Sync skill to user dir** (required for Claude Code to find it):
+   ```bash
+   cp canvas/skills/claude-fortress/SKILL.md ~/.claude/skills/claude-fortress/SKILL.md
+   ```
+4. **Clean up any orphaned processes**: `pkill -9 -f "canvas-fortress"; rm -f /tmp/canvas-*.sock /tmp/claude-canvas-pane-id`
+5. **Test spawn**: `~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"Test","save":false}'`
+6. **Verify pane appeared**: You should see a new tmux pane split to the right (67% width)
+7. **Check socket created** (after 2-3 seconds): `ls -la /tmp/canvas-fortress-1.sock`
+8. **Test CLI query**: `~/.bun/bin/bun run src/cli.ts query fortress-1`
+
+### Skill Development Note
+The skill file lives in two places:
+- **Source**: `canvas/skills/claude-fortress/SKILL.md` (in repo, edit this one)
+- **Active**: `~/.claude/skills/claude-fortress/SKILL.md` (Claude Code reads from here)
+
+After editing the skill, sync it:
+```bash
+cp canvas/skills/claude-fortress/SKILL.md ~/.claude/skills/claude-fortress/SKILL.md
+```
+
+Or create a symlink for auto-sync:
+```bash
+rm -rf ~/.claude/skills/claude-fortress
+ln -s /Users/timbrown/Development/Web/dwarf-fortress-canvas/canvas/skills/claude-fortress ~/.claude/skills/claude-fortress
+```
 
 ### Debugging Spawn Issues
 If fortress doesn't appear:
