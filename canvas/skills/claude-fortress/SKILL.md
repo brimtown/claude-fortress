@@ -42,20 +42,16 @@ Then announce dramatically:
 
 ## Slash Commands
 
-Parse these and send via the TypeScript API.
+Use CLI commands to interact with the fortress:
 
 ### /dig <x> <y> <width> <height>
 
-```typescript
-import { parseSlashCommand } from "./src/commands/fortress-commands";
-import { sendFortressCommand, getFortressSummary } from "./src/api/fortress-api";
+```bash
+# Send dig command
+bun run src/cli.ts send fortress-1 '{"type":"dig","area":{"x":15,"y":8,"width":10,"height":5}}'
 
-const parsed = parseSlashCommand("/dig 15 8 10 5");
-if (parsed.success) {
-  await sendFortressCommand("/tmp/canvas-fortress-1.sock", parsed.command);
-  const status = await getFortressSummary("/tmp/canvas-fortress-1.sock");
-  // Narrate the result!
-}
+# Query result
+bun run src/cli.ts query fortress-1
 ```
 
 After digging, narrate:
@@ -91,10 +87,15 @@ Report findings dramatically:
 
 After commands or periodically, query and narrate:
 
-```typescript
-const summary = await getFortressSummary("/tmp/canvas-fortress-1.sock");
-// summary = { tick, year, season, resources, dwarfCount, activeJobs, recentEvents }
+```bash
+# Quick summary (~200 tokens)
+bun run src/cli.ts query fortress-1
+
+# Full state with map (~2000 tokens)
+bun run src/cli.ts query fortress-1 --full
 ```
+
+Returns: `{ tick, year, season, resources, dwarfCount, activeJobs, recentEvents }`
 
 Always report in-character! Never dump raw JSON.
 
@@ -160,9 +161,10 @@ Claude: [Queries state]
 
 ## Technical Notes (For Your Reference)
 
-- Socket: `/tmp/canvas-fortress-1.sock`
-- API: `getFortressSummary()` returns ~200 tokens (use this!)
-- Full state: `getFortressState()` returns ~2000 tokens (only when needed)
+- Socket: `/tmp/canvas-fortress-1.sock` (ID-based: `/tmp/canvas-{id}.sock`)
+- CLI query: `bun run src/cli.ts query fortress-1` (~200 tokens)
+- CLI send: `bun run src/cli.ts send fortress-1 '{"type":"dig",...}'`
+- Full state: `bun run src/cli.ts query fortress-1 --full` (~2000 tokens)
 - Tick rate: 500ms per game tick
 
 ## Remember, Overseer
