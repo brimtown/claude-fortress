@@ -186,35 +186,20 @@ export function handleCommand(state: FortressState, command: FortressCommand): b
 }
 
 /**
- * Check if a wall tile is accessible (adjacent to floor)
- */
-function isAccessible(state: FortressState, x: number, y: number): boolean {
-  const directions = [
-    [-1, 0], [1, 0], [0, -1], [0, 1],  // cardinal
-    [-1, -1], [1, -1], [-1, 1], [1, 1]  // diagonal
-  ];
-
-  for (const [dx, dy] of directions) {
-    const nx = x + dx;
-    const ny = y + dy;
-    if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
-
-    const neighbor = state.map[ny]?.[nx];
-    if (neighbor?.type === "floor") {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Handle dig command - designate area for mining (creates jobs for miners)
+ *
+ * Strategy: Create jobs for ALL wall tiles in the area (like real DF).
+ * The job assignment system will handle accessibility - dwarves will only
+ * work on tiles adjacent to existing floors, and as they dig, more tiles
+ * become accessible naturally.
  */
 function handleDigCommand(
   state: FortressState,
   area: { x: number; y: number; width: number; height: number }
 ): boolean {
   let jobsCreated = 0;
+  let wallsFound = 0;
+  let alreadyDesignated = 0;
 
   for (let dy = 0; dy < area.height; dy++) {
     for (let dx = 0; dx < area.width; dx++) {
@@ -229,18 +214,25 @@ function handleDigCommand(
       const tile = row[x];
       if (!tile) continue;
 
-      // Only create job for wall tiles that are accessible and haven't been dug
-      if (tile.type === "wall" && !tile.dug && isAccessible(state, x, y)) {
-        // Check if there's already a dig job here
-        const existingJob = state.jobs.find(j => j.type === "dig" && j.x === x && j.y === y);
-        if (!existingJob) {
-          state.jobs.push(createDigJob(x, y));
-          jobsCreated++;
+      // Count wall tiles for better feedback
+      if (tile.type === "wall") {
+        wallsFound++;
+
+        // Create job for any undesignated wall tile
+        if (!tile.dug) {
+          const existingJob = state.jobs.find(j => j.type === "dig" && j.x === x && j.y === y);
+          if (!existingJob) {
+            state.jobs.push(createDigJob(x, y));
+            jobsCreated++;
+          } else {
+            alreadyDesignated++;
+          }
         }
       }
     }
   }
 
+  // Provide helpful feedback
   if (jobsCreated > 0) {
     state.events.push(
       createEvent(
@@ -250,6 +242,24 @@ function handleDigCommand(
       )
     );
     return true;
+  } else if (alreadyDesignated > 0) {
+    state.events.push(
+      createEvent(
+        state.tick,
+        `${alreadyDesignated} tiles already designated`,
+        "info"
+      )
+    );
+    return true;
+  } else if (wallsFound === 0) {
+    state.events.push(
+      createEvent(
+        state.tick,
+        `No diggable walls in that area (already dug or invalid terrain)`,
+        "warning"
+      )
+    );
+    return false;
   }
 
   return false;

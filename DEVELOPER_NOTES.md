@@ -1,7 +1,7 @@
 # Claude Fortress - Developer Notes
 
 **Last Updated**: 2026-01-08
-**Status**: ✅ WORKING - Movement, jobs, IPC queries, autonomous debugging!
+**Status**: ✅ WORKING - Movement, jobs, IPC queries, autonomous debugging, improved dig command!
 
 ## 🚀 Quick Start for New Sessions
 
@@ -238,12 +238,31 @@ spawn("tmux", ["send-keys", "-t", paneId, `bash ${wrapperScript}`, "Enter"]);
 - Position (x,y) exists in state but not updated
 - **TODO**: Add simple movement AI
 
+### Dig Command Improvements (FIXED 2026-01-08)
+**Problem**: Previously, dig commands only created jobs for wall tiles adjacent to existing floors. This caused:
+- Silent failures when designating large areas
+- Confusing behavior where commands seemed to do nothing
+- Users had to designate areas incrementally as they dug
+
+**Solution Implemented**:
+- **Designation Phase**: ALL wall tiles in the designated area get jobs created (like real Dwarf Fortress!)
+- **Assignment Phase**: Dwarves only work on accessible tiles (adjacent to existing floors)
+- **Progressive Excavation**: As dwarves dig, more tiles become accessible naturally
+- **Better Feedback**: Clear event messages for success, already-designated, or invalid areas
+
+**Code Changes**:
+- `engine.ts`: Removed accessibility check from `handleDigCommand()`, added better feedback messages
+- `jobs.ts`: Added `isJobAccessible()` check to `findJobForDwarf()` for smarter job assignment
+- Jobs are created eagerly, assigned intelligently
+
+**Result**: You can now designate entire halls/rooms at once, and dwarves will dig from the outside in!
+
 ## ✅ What's Working
 
 - ✅ Fortress spawns reliably in tmux pane
 - ✅ IPC socket created and listening
 - ✅ Commands sent via `nc` work perfectly
-- ✅ Dig command adds stone, shows event
+- ✅ Dig command with smart job assignment (designate large areas, dwarves dig from outside in!)
 - ✅ Build command deducts resources (untested but code exists)
 - ✅ Auto-save every 10 ticks
 - ✅ Load from save on restart

@@ -1,5 +1,6 @@
 import type { Job, Dwarf, FortressState, Labor } from "../../scenarios/fortress/types";
 import { createEvent } from "./events";
+import { MAP_WIDTH, MAP_HEIGHT } from "./map";
 
 let nextJobId = 0;
 
@@ -39,7 +40,31 @@ export function createBuildJob(
 }
 
 /**
+ * Check if a tile is accessible (adjacent to a floor tile)
+ * This ensures dwarves can only work on tiles they can reach
+ */
+function isJobAccessible(state: FortressState, x: number, y: number): boolean {
+  const directions = [
+    [-1, 0], [1, 0], [0, -1], [0, 1],  // cardinal
+    [-1, -1], [1, -1], [-1, 1], [1, 1]  // diagonal
+  ];
+
+  for (const [dx, dy] of directions) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
+
+    const neighbor = state.map[ny]?.[nx];
+    if (neighbor?.type === "floor" || neighbor?.dug) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Find an available job for a dwarf
+ * Prioritizes accessible jobs (adjacent to existing floors)
  */
 export function findJobForDwarf(state: FortressState, dwarf: Dwarf): Job | null {
   // Don't assign jobs if critical needs
@@ -48,9 +73,19 @@ export function findJobForDwarf(state: FortressState, dwarf: Dwarf): Job | null 
   }
 
   // Find unassigned job matching dwarf's labor
+  // For dig jobs, only assign accessible ones (next to existing floors)
   for (const job of state.jobs) {
     if (!job.assignedDwarfId && job.requiredLabor === dwarf.labor) {
-      return job;
+      // Dig jobs must be accessible (adjacent to floor)
+      if (job.type === "dig") {
+        if (isJobAccessible(state, job.x, job.y)) {
+          return job;
+        }
+        // Skip inaccessible dig jobs for now - they'll become accessible as digging progresses
+      } else {
+        // Non-dig jobs don't have accessibility requirements
+        return job;
+      }
     }
   }
 
