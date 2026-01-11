@@ -38,44 +38,18 @@ sudo apt install tmux
 tmux -V
 ```
 
-### 3. Clone and Setup
+### 3. Clone and Install
 
 ```bash
-# Clone the repository
 git clone https://github.com/YOUR_USERNAME/claude-fortress.git
 cd claude-fortress
-
-# Install dependencies
-cd canvas
-bun install
+./install.sh
 ```
 
-### 4. Install the Skill
-
-Copy the skill file so Claude Code can find it:
-
-```bash
-# Create the skills directory if it doesn't exist
-mkdir -p ~/.claude/skills/claude-fortress
-
-# Copy the skill file
-cp canvas/skills/claude-fortress/SKILL.md ~/.claude/skills/claude-fortress/SKILL.md
-```
-
-Or create a symlink for auto-updates during development:
-
-```bash
-ln -s "$(pwd)/canvas/skills/claude-fortress" ~/.claude/skills/claude-fortress
-```
-
-### 5. Set Environment Variable (Optional)
-
-For easier CLI usage, set the repo location:
-
-```bash
-# Add to your ~/.bashrc or ~/.zshrc
-export CLAUDE_FORTRESS_DIR="/path/to/claude-fortress"
-```
+The install script will:
+- Install npm dependencies
+- Create a symlink for the Claude Code skill
+- Check for required tools (bun, tmux)
 
 ## Quick Start
 
@@ -111,15 +85,27 @@ bun run src/cli.ts query fortress-1
 echo '{"type":"command","command":{"type":"dig","area":{"x":15,"y":5,"width":10,"height":5}}}' | nc -U /tmp/canvas-fortress-1.sock
 ```
 
-## Features
+## What's Implemented
 
-- Real-time ASCII fortress simulation
-- Natural language command system via IPC
+- Real-time ASCII fortress simulation (500ms ticks)
+- Natural language commands via Claude as overseer
+- Dwarf movement and pathfinding
+- Job system (dig, build, assign labor)
 - Dwarf needs (hunger, thirst, happiness)
-- Mining, building, and resource management
+- Resource management (wood, stone, food, drink)
 - Migrant waves and seasonal events
 - Persistent save/load system
-- Claude acts as dramatic narrator/overseer
+- IPC for programmatic control
+
+## What's NOT Implemented (Yet)
+
+- Death (dwarves complain but don't die)
+- Workshop production (buildings exist but don't produce)
+- Combat/military
+- Z-levels (single floor only)
+- Trading caravans
+
+See [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md) for the full roadmap.
 
 ## Troubleshooting
 
@@ -135,6 +121,18 @@ Ensure Bun is in your PATH. After installation, you may need to restart your ter
 ## Development
 
 See [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md) for detailed development documentation.
+
+## Contributing
+
+PRs welcome! Good first issues:
+
+- Add more dwarf name combinations
+- Implement workshop production (stills make drink, etc.)
+- Add death when hunger/thirst hit 100
+- Color-code tiles by type
+- Add more event variety
+
+The codebase is ~50% inherited canvas framework, ~50% custom fortress simulation. The simulation lives in `canvas/src/lib/fortress-sim/`.
 
 ## License
 
