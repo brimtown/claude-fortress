@@ -1,5 +1,16 @@
 #!/bin/bash
 # Helper functions to query fortress state
+#
+# Usage: source this file, then call the functions
+#   source ./query-helpers.sh
+#   get_tick
+#   count_dwarves
+
+# Check dependencies
+if ! command -v nc &> /dev/null; then
+  echo "Warning: 'nc' (netcat) is required for these helpers"
+  echo "Install with: brew install netcat (macOS) or apt install netcat (Linux)"
+fi
 
 SOCKET="${FORTRESS_SOCKET:-/tmp/canvas-fortress-1.sock}"
 
