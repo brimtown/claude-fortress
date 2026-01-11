@@ -52,10 +52,11 @@ F="cd $CLAUDE_FORTRESS_DIR/canvas && bun src/cli.ts"
 
 Then use:
 ```bash
-$F query fortress-1           # Quick status (~200 tokens)
-$F query fortress-1 --full    # Full state with map (~2000 tokens)
+$F query fortress-1           # Quick status - ALWAYS use this
 $F send fortress-1 '<json>'   # Send command
 ```
+
+> **WARNING**: Do NOT use `--full` flag - it returns too much data and causes timeouts.
 
 ## Available Actions
 
@@ -117,12 +118,13 @@ $F send fortress-1 '{"type":"save"}'
 
 ## Querying State
 
-Query **only when needed** (after commands, or when user asks "how's it going?"). Never run in background - queries are fast.
+Query **only when needed** (after commands, or when user asks "how's it going?"). Queries are fast.
 
 ```bash
-$F query fortress-1           # Quick summary (~200 tokens) - USE THIS
-$F query fortress-1 --full    # Full state with map (~2000 tokens) - rarely needed
+$F query fortress-1           # Quick summary (~200 tokens) - ALWAYS use this
 ```
+
+> **Never use `--full`** - it causes timeouts. The summary has everything you need.
 
 Returns: `{ tick, year, season, resources, dwarfCount, activeJobs, recentEvents }`
 
