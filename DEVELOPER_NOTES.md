@@ -8,14 +8,14 @@
 **Get running in 30 seconds:**
 
 ```bash
-# 1. Navigate to canvas directory
-cd /Users/timbrown/Development/Web/claude-fortress/canvas
+# 1. Navigate to canvas directory (from repo root)
+cd canvas
 
 # 2. Clean up any old processes
 pkill -f "canvas-fortress"; rm -f /tmp/canvas-*.sock
 
 # 3. Spawn a fortress
-~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"DevSession","save":false}'
+bun run src/cli.ts spawn fortress --config='{"fortressName":"DevSession","save":false}'
 
 # 4. Verify it's running (wait 2-3 seconds for socket)
 ls /tmp/canvas-fortress-1.sock
@@ -142,19 +142,17 @@ canvas/src/
 
 ### Claude Code Skill
 ```
-~/.claude/skills/dwarf-fortress/
+~/.claude/skills/claude-fortress/
 ├── SKILL.md                       - Skill definition, spawn commands, IPC examples
-├── reference.md                   - Technical mechanics reference
-├── examples.md                    - Usage scenarios & patterns
-└── scripts/send-command.ts        - IPC utility (not currently used, using nc instead)
+└── (copy from canvas/skills/claude-fortress/)
 ```
 
 ## 🔧 How It Works
 
 ### 1. Spawning the Fortress
 ```bash
-cd /Users/timbrown/Development/Web/claude-fortress/canvas
-~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"ClawdeFort","save":true}'
+cd canvas  # from repo root
+bun run src/cli.ts spawn fortress --config='{"fortressName":"ClawdeFort","save":true}'
 ```
 
 **What happens:**
@@ -407,17 +405,18 @@ Features that enhance emergent stories:
 ## 🎯 How to Resume Development
 
 ### Starting Fresh Session
-1. **Navigate to canvas dir**: `cd /Users/timbrown/Development/Web/claude-fortress/canvas`
-2. **Ensure Bun installed**: `~/.bun/bin/bun --version`
+1. **Navigate to canvas dir**: `cd canvas` (from repo root)
+2. **Ensure Bun installed**: `bun --version`
 3. **Sync skill to user dir** (required for Claude Code to find it):
    ```bash
+   mkdir -p ~/.claude/skills/claude-fortress
    cp canvas/skills/claude-fortress/SKILL.md ~/.claude/skills/claude-fortress/SKILL.md
    ```
 4. **Clean up any orphaned processes**: `pkill -9 -f "canvas-fortress"; rm -f /tmp/canvas-*.sock /tmp/claude-canvas-pane-id`
-5. **Test spawn**: `~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"Test","save":false}'`
+5. **Test spawn**: `bun run src/cli.ts spawn fortress --config='{"fortressName":"Test","save":false}'`
 6. **Verify pane appeared**: You should see a new tmux pane split to the right (67% width)
 7. **Check socket created** (after 2-3 seconds): `ls -la /tmp/canvas-fortress-1.sock`
-8. **Test CLI query**: `~/.bun/bin/bun run src/cli.ts query fortress-1`
+8. **Test CLI query**: `bun run src/cli.ts query fortress-1`
 
 ### Skill Development Note
 The skill file lives in two places:
@@ -429,10 +428,10 @@ After editing the skill, sync it:
 cp canvas/skills/claude-fortress/SKILL.md ~/.claude/skills/claude-fortress/SKILL.md
 ```
 
-Or create a symlink for auto-sync:
+Or create a symlink for auto-sync (replace with your actual repo path):
 ```bash
 rm -rf ~/.claude/skills/claude-fortress
-ln -s /Users/timbrown/Development/Web/dwarf-fortress-canvas/canvas/skills/claude-fortress ~/.claude/skills/claude-fortress
+ln -s /path/to/claude-fortress/canvas/skills/claude-fortress ~/.claude/skills/claude-fortress
 ```
 
 ### Debugging Spawn Issues
@@ -481,7 +480,7 @@ When developing new features, use this workflow:
 pkill -f "canvas-fortress"
 
 # 3. Respawn immediately (code reloads automatically with Bun)
-~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"DevTest","save":false}'
+bun run src/cli.ts spawn fortress --config='{"fortressName":"DevTest","save":false}'
 
 # 4. Test your changes by sending commands
 echo '{"type":"command","command":{"type":"dig","area":{"x":15,"y":8,"width":5,"height":5}}}' | nc -U /tmp/canvas-fortress-1.sock
@@ -494,13 +493,13 @@ echo '{"type":"command","command":{"type":"dig","area":{"x":15,"y":8,"width":5,"
 **Testing with saves**:
 ```bash
 # Create a test fortress with save enabled
-~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"SaveTest","save":true}'
+bun run src/cli.ts spawn fortress --config='{"fortressName":"SaveTest","save":true}'
 
 # Let it run for a bit (migrants, resource consumption, etc.)
 # Then kill with 'q' (auto-saves on exit)
 
 # Reload to test save/load
-~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"SaveTest","save":true}'
+bun run src/cli.ts spawn fortress --config='{"fortressName":"SaveTest","save":true}'
 
 # Should resume with same tick, dwarves, resources
 ```
@@ -644,9 +643,9 @@ This was a collaboration between human creativity and AI implementation. The ide
 ## Quick Reference Commands
 
 ```bash
-# Spawn fortress
-cd /Users/timbrown/Development/Web/claude-fortress/canvas
-~/.bun/bin/bun run src/cli.ts spawn fortress --config='{"fortressName":"NAME","save":true}'
+# Spawn fortress (from repo root)
+cd canvas
+bun run src/cli.ts spawn fortress --config='{"fortressName":"NAME","save":true}'
 
 # Send commands
 echo '{"type":"command","command":{"type":"dig","area":{"x":15,"y":5,"width":10,"height":5}}}' | nc -U /tmp/canvas-fortress-1.sock

@@ -41,7 +41,8 @@ export async function spawnCanvas(
 
   // Create a wrapper script to avoid shell escaping issues with tmux
   const wrapperScript = `/tmp/canvas-spawn-${id}.sh`;
-  let wrapperContent = `#!/bin/bash\ncd ${scriptDir}\nexec ~/.bun/bin/bun run src/cli.ts show ${kind} --id ${id}`;
+  // Use 'bun' from PATH - users should have bun in their PATH after installation
+  let wrapperContent = `#!/bin/bash\ncd ${scriptDir}\nexec bun run src/cli.ts show ${kind} --id ${id}`;
 
   if (configJson) {
     wrapperContent += ` --config '${configJson.replace(/'/g, "'\\''")}'`;

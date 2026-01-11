@@ -15,7 +15,7 @@
 
 1. **Create new repo:**
 ```bash
-cd /Users/timbrown/Development/Web/claude-fortress
+cd /path/to/claude-fortress
 git init
 git add .
 git commit -m "Initial commit: Claude Fortress for Claude Code
