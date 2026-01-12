@@ -1,6 +1,7 @@
 import type {
   FortressState,
   FortressCommand,
+  FortressStatistics,
   Dwarf,
   Building,
   Season,
@@ -8,7 +9,7 @@ import type {
   Labor,
 } from "../../scenarios/fortress/types";
 import { generateMap, MAP_WIDTH, MAP_HEIGHT } from "./map";
-import { createStartingDwarves, updateDwarfNeeds, createDwarf } from "./dwarf";
+import { createStartingDwarves, updateDwarfNeeds, createDwarf, killDwarf, getLivingDwarfCount } from "./dwarf";
 import {
   createStartingResources,
   consumeResources,
@@ -17,9 +18,28 @@ import {
 } from "./resources";
 import { createEvent, trimEvents, EventMessages } from "./events";
 import { updateAllDwarfMovement } from "./movement";
-import { updateJobs, createDigJob, createBuildJob } from "./jobs";
+import { updateJobs, createDigJob, createBuildJob, createProductionJob } from "./jobs";
+import { updateMoods } from "./moods";
 
 let nextBuildingId = 0;
+
+/**
+ * Create initial statistics
+ */
+function createInitialStatistics(): FortressStatistics {
+  return {
+    deaths: 0,
+    deathsByStarvation: 0,
+    deathsByDehydration: 0,
+    deathsByInsanity: 0,
+    deathsByBerserk: 0,
+    artifactsCreated: 0,
+    peakPopulation: 7,
+    moodsTriggered: 0,
+    moodsSucceeded: 0,
+    moodsFailed: 0,
+  };
+}
 
 /**
  * Create initial fortress state
@@ -39,6 +59,7 @@ export function createInitialState(fortressName: string, seed?: number): Fortres
     year: 251,
     season: "Spring",
     paused: false,
+    statistics: createInitialStatistics(),
   };
 }
 
@@ -56,41 +77,78 @@ export function processTick(state: FortressState): void {
   // Update dwarf movement (paths to jobs, wanders when idle)
   updateAllDwarfMovement(state);
 
-  // Update dwarf needs
+  // Update dwarf needs - only for living dwarves
   for (const dwarf of state.dwarves) {
+    // Skip dead dwarves
+    if (!dwarf.alive) continue;
+
     updateDwarfNeeds(dwarf);
 
-    // Handle critical needs
+    // Handle critical needs - STARVATION
     if (dwarf.hunger > 90) {
       // Try to eat
       if (state.resources.food > 0) {
         state.resources.food--;
         dwarf.hunger = 0;
+        dwarf.starvationTicks = 0; // Reset counter
       } else {
-        // Starving warning
+        // Increment starvation counter
+        dwarf.starvationTicks = (dwarf.starvationTicks || 0) + 1;
+
+        // Death after 100 ticks of starvation (~50 seconds)
+        if (dwarf.starvationTicks >= 100) {
+          killDwarf(state, dwarf, "starvation");
+          continue; // Skip further processing for this dwarf
+        }
+
+        // Starving warning every 50 ticks
         if (state.tick % 50 === 0) {
           state.events.push(
             createEvent(state.tick, EventMessages.dwarfStarving(dwarf.name), "danger")
           );
         }
       }
+    } else {
+      dwarf.starvationTicks = 0; // Reset if no longer starving
     }
 
+    // Handle critical needs - DEHYDRATION
     if (dwarf.thirst > 90) {
       // Try to drink
       if (state.resources.drink > 0) {
         state.resources.drink--;
         dwarf.thirst = 0;
+        dwarf.dehydrationTicks = 0; // Reset counter
       } else {
-        // Dehydrated warning
+        // Increment dehydration counter
+        dwarf.dehydrationTicks = (dwarf.dehydrationTicks || 0) + 1;
+
+        // Death after 100 ticks of dehydration (~50 seconds)
+        if (dwarf.dehydrationTicks >= 100) {
+          killDwarf(state, dwarf, "dehydration");
+          continue; // Skip further processing for this dwarf
+        }
+
+        // Dehydrated warning every 50 ticks
         if (state.tick % 50 === 0) {
           state.events.push(
             createEvent(state.tick, EventMessages.dwarfDehydrated(dwarf.name), "danger")
           );
         }
       }
+    } else {
+      dwarf.dehydrationTicks = 0; // Reset if no longer dehydrated
     }
   }
+
+  // Track peak population
+  const livingCount = getLivingDwarfCount(state.dwarves);
+  if (livingCount > state.statistics.peakPopulation) {
+    state.statistics.peakPopulation = livingCount;
+  }
+
+  // Update Strange Moods system
+  updateMoods(state);
 
   // Random events (low probability)
   const rand = Math.random();
@@ -139,6 +197,34 @@ export function processTick(state: FortressState): void {
     state.events.push(
       createEvent(state.tick, EventMessages.seasonChange(state.season, state.year), "info")
     );
+  }
+
+  // Auto-queue production jobs for workshops and farms every 20 ticks
+  if (state.tick % 20 === 0) {
+    for (const building of state.buildings) {
+      // Skip if building already has an active job
+      if (building.activeJobId !== undefined) continue;
+
+      // Check if there's already a production job at this location
+      const existingJob = state.jobs.find(
+        j => j.type === "produce" && j.x === building.x && j.y === building.y
+      );
+      if (existingJob) {
+        building.activeJobId = existingJob.id;
+        continue;
+      }
+
+      // Create production jobs for stills (brewing) and farms (farming)
+      if (building.type === "workshop" && building.subtype === "still") {
+        const job = createProductionJob(building.x, building.y, "still", "drink", "brewing");
+        state.jobs.push(job);
+        building.activeJobId = job.id;
+      } else if (building.type === "farm" || building.subtype === "farm") {
+        const job = createProductionJob(building.x, building.y, "farm", "food", "farming");
+        state.jobs.push(job);
+        building.activeJobId = job.id;
+      }
+    }
   }
 
   // Trim events to keep memory reasonable
@@ -270,7 +356,7 @@ function handleDigCommand(
  */
 function handleBuildCommand(
   state: FortressState,
-  structure: "workshop" | "stockpile" | "bed",
+  structure: "workshop" | "stockpile" | "bed" | "farm",
   location: { x: number; y: number },
   subtype?: string
 ): boolean {
@@ -292,20 +378,22 @@ function handleBuildCommand(
     return false;
   }
 
-  // Check resource cost
-  const cost = getBuildingCost(structure, subtype);
-  if (!consumeResources(state.resources, cost)) {
-    state.events.push(
-      createEvent(state.tick, "Insufficient resources for construction", "warning")
-    );
-    return false;
+  // Check resource cost (farms are free, just need floor)
+  if (structure !== "farm") {
+    const cost = getBuildingCost(structure, subtype);
+    if (!consumeResources(state.resources, cost)) {
+      state.events.push(
+        createEvent(state.tick, "Insufficient resources for construction", "warning")
+      );
+      return false;
+    }
   }
 
   // Create building
   const building: Building = {
     id: nextBuildingId++,
     type: structure,
-    subtype,
+    subtype: structure === "farm" ? "farm" : subtype,
     x: location.x,
     y: location.y,
     width: structure === "workshop" ? 3 : 1,

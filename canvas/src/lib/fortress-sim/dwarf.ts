@@ -1,4 +1,5 @@
-import type { Dwarf, Labor } from "../../scenarios/fortress/types";
+import type { Dwarf, Labor, DeathCause, FortressState } from "../../scenarios/fortress/types";
+import { createEvent, EventMessages } from "./events";
 
 const FIRST_NAMES = [
   "Urist", "Kol", "Domas", "Rigoth", "Sigun", "Kulet", "Zasit",
@@ -36,6 +37,7 @@ export function createDwarf(x: number, y: number, labor?: Labor): Dwarf {
     energy: 100,
     labor: labor || "hauling",
     happiness: 50,
+    alive: true,
   };
 }
 
@@ -110,10 +112,62 @@ export function getDwarfMood(happiness: number): string {
 }
 
 /**
- * Get average happiness across all dwarves
+ * Get average happiness across all living dwarves
  */
 export function getAverageHappiness(dwarves: Dwarf[]): number {
-  if (dwarves.length === 0) return 0;
-  const total = dwarves.reduce((sum, d) => sum + d.happiness, 0);
-  return Math.round(total / dwarves.length);
+  const livingDwarves = dwarves.filter(d => d.alive);
+  if (livingDwarves.length === 0) return 0;
+  const total = livingDwarves.reduce((sum, d) => sum + d.happiness, 0);
+  return Math.round(total / livingDwarves.length);
+}
+
+/**
+ * Kill a dwarf - set dead state, create corpse event, update statistics
+ */
+export function killDwarf(
+  state: FortressState,
+  dwarf: Dwarf,
+  cause: DeathCause
+): void {
+  if (!dwarf.alive) return; // Already dead
+
+  dwarf.alive = false;
+  dwarf.deathCause = cause;
+  dwarf.deathTick = state.tick;
+
+  // Cancel any current job
+  if (dwarf.currentJob) {
+    dwarf.currentJob.assignedDwarfId = undefined;
+    dwarf.currentJob = undefined;
+    dwarf.currentTask = undefined;
+  }
+
+  // Update statistics
+  state.statistics.deaths++;
+  switch (cause) {
+    case "starvation":
+      state.statistics.deathsByStarvation++;
+      break;
+    case "dehydration":
+      state.statistics.deathsByDehydration++;
+      break;
+    case "insanity":
+      state.statistics.deathsByInsanity++;
+      break;
+    case "berserk_attack":
+      state.statistics.deathsByBerserk++;
+      break;
+  }
+
+  // Create dramatic death event
+  state.events.push(
+    createEvent(state.tick, EventMessages.dwarfDeath(dwarf.name, cause), "danger")
+  );
+}
+
+/**
+ * Get count of living dwarves
+ */
+export function getLivingDwarfCount(dwarves: Dwarf[]): number {
+  return dwarves.filter(d => d.alive).length;
 }

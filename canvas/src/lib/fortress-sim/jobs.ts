@@ -24,7 +24,7 @@ export function createDigJob(x: number, y: number): Job {
 export function createBuildJob(
   x: number,
   y: number,
-  buildingType: "workshop" | "stockpile" | "bed",
+  buildingType: "workshop" | "stockpile" | "bed" | "farm",
   buildingSubtype?: string
 ): Job {
   return {
@@ -36,6 +36,29 @@ export function createBuildJob(
     requiredLabor: "carpentry",
     buildingType,
     buildingSubtype,
+  };
+}
+
+/**
+ * Create a production job at a workshop/farm
+ */
+export function createProductionJob(
+  x: number,
+  y: number,
+  buildingSubtype: string,
+  outputType: "food" | "drink",
+  requiredLabor: Labor
+): Job {
+  return {
+    id: nextJobId++,
+    type: "produce",
+    x,
+    y,
+    progress: 0,
+    requiredLabor,
+    buildingSubtype,
+    outputType,
+    outputQuantity: 5, // Produce 5 units per job
   };
 }
 
@@ -67,6 +90,11 @@ function isJobAccessible(state: FortressState, x: number, y: number): boolean {
  * Prioritizes accessible jobs (adjacent to existing floors)
  */
 export function findJobForDwarf(state: FortressState, dwarf: Dwarf): Job | null {
+  // Dead dwarves don't work
+  if (!dwarf.alive) {
+    return null;
+  }
+
   // Don't assign jobs if critical needs
   if (dwarf.hunger > 90 || dwarf.thirst > 90) {
     return null;
@@ -173,6 +201,27 @@ function completeJob(state: FortressState, job: Job): void {
         createEvent(state.tick, `${name} construction completed`, "success")
       );
     }
+  } else if (job.type === "produce" && job.outputType) {
+    // Production job completed - add resources
+    const quantity = job.outputQuantity || 5;
+
+    if (job.outputType === "food") {
+      state.resources.food += quantity;
+      state.events.push(
+        createEvent(state.tick, `Farm harvest: +${quantity} food`, "success")
+      );
+    } else if (job.outputType === "drink") {
+      state.resources.drink += quantity;
+      state.events.push(
+        createEvent(state.tick, `Still produced: +${quantity} drink`, "success")
+      );
+    }
+
+    // Clear the building's active job reference
+    const building = state.buildings.find(b => b.x === job.x && b.y === job.y);
+    if (building) {
+      building.activeJobId = undefined;
+    }
   }
 
   // Remove job from queue
@@ -198,6 +247,9 @@ export function cancelJob(dwarf: Dwarf): void {
  */
 export function updateJobs(state: FortressState): void {
   for (const dwarf of state.dwarves) {
+    // Skip dead dwarves
+    if (!dwarf.alive) continue;
+
     // Cancel job if critical needs
     if (dwarf.currentJob && (dwarf.hunger > 90 || dwarf.thirst > 90)) {
       cancelJob(dwarf);

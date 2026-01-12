@@ -1,4 +1,4 @@
-import type { GameEvent } from "../../scenarios/fortress/types";
+import type { GameEvent, DeathCause, MoodState } from "../../scenarios/fortress/types";
 
 let nextEventId = 0;
 
@@ -76,5 +76,60 @@ export const EventMessages = {
 
   seasonChange: (season: string, year: number) => {
     return `${season} has arrived, Year ${year}`;
+  },
+
+  // Death events - dramatic DF-style messages
+  dwarfDeath: (name: string, cause: DeathCause) => {
+    switch (cause) {
+      case "starvation":
+        return `${name} has starved to death!`;
+      case "dehydration":
+        return `${name} has died of thirst!`;
+      case "insanity":
+        return `${name} has gone utterly mad and perished!`;
+      case "berserk_attack":
+        return `${name} was slain in a berserk rampage!`;
+      default:
+        return `${name} has died!`;
+    }
+  },
+
+  // Strange Mood events
+  moodStruck: (name: string, moodType: MoodState, workshopType: string) => {
+    const moodDescriptions: Record<string, string> = {
+      fey: "has been struck by a fey mood",
+      possessed: "has been possessed",
+      secretive: "has become secretive",
+    };
+    const desc = moodDescriptions[moodType] || "has entered a strange mood";
+    return `${name} ${desc} and claimed the ${workshopType}!`;
+  },
+
+  moodDemands: (name: string, materials: string[]) => {
+    return `${name} demands: ${materials.join(", ")}`;
+  },
+
+  moodSuccess: (name: string, artifactName: string) => {
+    return `${name} has created a masterwork: ${artifactName}!`;
+  },
+
+  moodFailed: (name: string, outcome: "melancholic" | "berserk") => {
+    if (outcome === "berserk") {
+      return `${name} has gone berserk! The fortress is in danger!`;
+    }
+    return `${name} has withdrawn from society, overcome with melancholy.`;
+  },
+
+  berserkAttack: (attackerName: string, victimName: string) => {
+    return `${attackerName} attacks ${victimName} in a berserk rage!`;
+  },
+
+  // Production events
+  workshopProduction: (workshopType: string, outputType: string, quantity: number) => {
+    return `${workshopType} produced ${quantity} ${outputType}`;
+  },
+
+  farmHarvest: (quantity: number) => {
+    return `Farm harvest: +${quantity} food`;
   },
 };

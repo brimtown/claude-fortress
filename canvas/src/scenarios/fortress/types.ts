@@ -9,7 +9,9 @@ export type TileType =
   | "door"      // + - Door
   | "workshop"  // X - Workshop
   | "stockpile" // ≈ - Stockpile
-  | "bed";      // = - Bed
+  | "bed"       // = - Bed
+  | "farm"      // % - Farm plot
+  | "corpse";   // X - Dead dwarf
 
 export interface Tile {
   type: TileType;
@@ -18,6 +20,10 @@ export interface Tile {
 }
 
 export type Labor = "mining" | "carpentry" | "brewing" | "farming" | "hauling";
+
+export type DeathCause = "starvation" | "dehydration" | "insanity" | "berserk_attack";
+
+export type MoodState = "normal" | "fey" | "possessed" | "secretive" | "melancholic" | "berserk";
 
 export interface Dwarf {
   id: number;
@@ -31,18 +37,39 @@ export interface Dwarf {
   currentTask?: string;
   currentJob?: Job;    // The job this dwarf is actively working on
   happiness: number;   // 0-100, higher = happier
+
+  // Death system
+  alive: boolean;               // Default true, false when dead
+  starvationTicks?: number;     // Consecutive ticks without food while starving
+  dehydrationTicks?: number;    // Consecutive ticks without drink while dehydrated
+  deathCause?: DeathCause;      // How they died
+  deathTick?: number;           // When they died
+
+  // Strange Mood system
+  moodState?: MoodState;        // Current mood (undefined = normal)
+  claimedBuildingId?: number;   // Workshop claimed during strange mood
+  moodDemands?: string[];       // Materials demanded: ["wood", "stone"]
+  moodProgress?: number;        // 0-100, artifact creation progress
+  moodStartTick?: number;       // When mood began
+  moodDeadline?: number;        // Tick when mood fails if demands unmet
+  artifactCreated?: string;     // Name of legendary artifact (if successful)
+  isLegendary?: boolean;        // True if completed a mood successfully
 }
 
 export interface Job {
   id: number;
-  type: "dig" | "build" | "haul";
+  type: "dig" | "build" | "haul" | "produce";
   x: number;
   y: number;
   progress: number;    // 0-100, work done on this job
   requiredLabor: Labor;
   assignedDwarfId?: number;
-  buildingType?: "workshop" | "stockpile" | "bed";
+  buildingType?: "workshop" | "stockpile" | "bed" | "farm";
   buildingSubtype?: string;
+
+  // Production job fields
+  outputType?: "food" | "drink";
+  outputQuantity?: number;      // How much to produce (default 5)
 }
 
 export interface Resources {
@@ -54,13 +81,20 @@ export interface Resources {
 
 export interface Building {
   id: number;
-  type: "workshop" | "stockpile" | "bed";
-  subtype?: "still" | "carpenter" | "food" | "wood" | "stone";
+  type: "workshop" | "stockpile" | "bed" | "farm";
+  subtype?: "still" | "carpenter" | "food" | "wood" | "stone" | "farm";
   x: number;
   y: number;
   width: number;
   height: number;
   built: boolean;
+
+  // Mood system - workshop claiming
+  claimedByDwarfId?: number;    // Dwarf who claimed this during mood
+  claimedAtTick?: number;       // When it was claimed
+
+  // Production tracking
+  activeJobId?: number;         // Current production job
 }
 
 export interface GameEvent {
@@ -71,6 +105,19 @@ export interface GameEvent {
 }
 
 export type Season = "Spring" | "Summer" | "Autumn" | "Winter";
+
+export interface FortressStatistics {
+  deaths: number;
+  deathsByStarvation: number;
+  deathsByDehydration: number;
+  deathsByInsanity: number;
+  deathsByBerserk: number;
+  artifactsCreated: number;
+  peakPopulation: number;
+  moodsTriggered: number;
+  moodsSucceeded: number;
+  moodsFailed: number;
+}
 
 export interface FortressState {
   map: Tile[][];        // 40x20 grid
@@ -83,6 +130,30 @@ export interface FortressState {
   year: number;
   season: Season;
   paused: boolean;
+  statistics: FortressStatistics;
+}
+
+// Dwarf status for summary (lighter than full Dwarf)
+export interface DwarfStatus {
+  id: number;
+  name: string;
+  labor: Labor;
+  hunger: number;
+  thirst: number;
+  happiness: number;
+  alive: boolean;
+  currentTask?: string;
+  moodState?: MoodState;
+  moodDemands?: string[];
+  isLegendary?: boolean;
+}
+
+// Crisis alerts for Claude visibility
+export interface CrisisAlerts {
+  starving: string[];       // Names of dwarves with hunger > 80
+  dehydrating: string[];    // Names of dwarves with thirst > 80
+  inMood: string[];         // Names of dwarves in strange mood
+  recentDeaths: string[];   // Names of recently deceased (last 5)
 }
 
 // Lightweight summary for token-efficient polling (excludes map, minimizes dwarves)
@@ -93,14 +164,20 @@ export interface FortressSummary {
   paused: boolean;
   resources: Resources;
   dwarfCount: number;
+  aliveCount: number;
   activeJobs: number;
   recentEvents: GameEvent[];  // Last 3-5 events only
+
+  // Enhanced visibility for Claude
+  dwarves: DwarfStatus[];
+  crises: CrisisAlerts;
+  statistics: FortressStatistics;
 }
 
 // Command types that Claude can send via IPC
 export type FortressCommand =
   | { type: "dig"; area: { x: number; y: number; width: number; height: number } }
-  | { type: "build"; structure: "workshop" | "stockpile" | "bed"; subtype?: string; location: { x: number; y: number } }
+  | { type: "build"; structure: "workshop" | "stockpile" | "bed" | "farm"; subtype?: string; location: { x: number; y: number } }
   | { type: "assign"; dwarfId: number; labor: Labor }
   | { type: "pause"; paused: boolean }
   | { type: "save" };

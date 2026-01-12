@@ -135,6 +135,12 @@ export function updateDwarfMovement(state: FortressState, dwarf: Dwarf): void {
   // Don't move if paused
   if (state.paused) return;
 
+  // Skip dead dwarves
+  if (!dwarf.alive) return;
+
+  // Skip dwarves in strange moods - they're handled by the moods system
+  if (dwarf.moodState && dwarf.moodState !== "normal") return;
+
   // Critical needs override everything
   if (dwarf.hunger > 90 && state.resources.food > 0) {
     // Try to find stockpile to eat from
@@ -180,6 +186,12 @@ export function updateDwarfMovement(state: FortressState, dwarf: Dwarf): void {
  */
 export function updateAllDwarfMovement(state: FortressState): void {
   for (const dwarf of state.dwarves) {
+    // Skip dead dwarves
+    if (!dwarf.alive) continue;
+
+    // Skip mood dwarves - handled by moods system
+    if (dwarf.moodState && dwarf.moodState !== "normal") continue;
+
     // Dwarves with jobs ALWAYS move (need to get to work!)
     // Idle dwarves have 30% chance to wander (makes it feel more natural)
     if (dwarf.currentJob || Math.random() < 0.3) {

@@ -7,7 +7,7 @@ import type {
 } from "../scenarios/fortress/types";
 import { createInitialState, processTick, handleCommand } from "../lib/fortress-sim/engine";
 import { getTileChar } from "../lib/fortress-sim/map";
-import { getAverageHappiness, getDwarfMood } from "../lib/fortress-sim/dwarf";
+import { getAverageHappiness, getDwarfMood, getLivingDwarfCount } from "../lib/fortress-sim/dwarf";
 import { saveFortress, loadFortress } from "../lib/fortress-sim/save";
 import { restoreEventIdCounter } from "../lib/fortress-sim/events";
 import { createIPCServer } from "../ipc/server";
@@ -54,6 +54,26 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
             if (!loadedState.jobs) {
               loadedState.jobs = [];
             }
+            if (!loadedState.statistics) {
+              loadedState.statistics = {
+                deaths: 0,
+                deathsByStarvation: 0,
+                deathsByDehydration: 0,
+                deathsByInsanity: 0,
+                deathsByBerserk: 0,
+                artifactsCreated: 0,
+                peakPopulation: loadedState.dwarves.length,
+                moodsTriggered: 0,
+                moodsSucceeded: 0,
+                moodsFailed: 0,
+              };
+            }
+            // Ensure all dwarves have alive field (old saves)
+            for (const dwarf of loadedState.dwarves) {
+              if (dwarf.alive === undefined) {
+                dwarf.alive = true;
+              }
+            }
 
             setState(loadedState);
             console.log(`Loaded fortress "${fortressName}" from save`);
@@ -98,10 +118,36 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                 ipcServer.broadcast({ type: "state", data: stateRef.current });
               }
             } else if (msg.type === "getSummary") {
-              // Send lightweight summary (no map data, minimal tokens)
+              // Send enhanced summary with crisis alerts and statistics
               // Use stateRef.current to avoid stale closure bug
               if (ipcServer) {
                 const currentState = stateRef.current;
+                const livingDwarves = currentState.dwarves.filter(d => d.alive);
+                const deadDwarves = currentState.dwarves.filter(d => !d.alive);
+
+                // Build dwarf status array
+                const dwarfStatus = currentState.dwarves.map(d => ({
+                  id: d.id,
+                  name: d.name,
+                  labor: d.labor,
+                  hunger: d.hunger,
+                  thirst: d.thirst,
+                  happiness: d.happiness,
+                  alive: d.alive,
+                  currentTask: d.currentTask,
+                  moodState: d.moodState,
+                  moodDemands: d.moodDemands,
+                  isLegendary: d.isLegendary,
+                }));
+
+                // Build crisis alerts
+                const crises = {
+                  starving: livingDwarves.filter(d => d.hunger > 80).map(d => d.name),
+                  dehydrating: livingDwarves.filter(d => d.thirst > 80).map(d => d.name),
+                  inMood: livingDwarves.filter(d => d.moodState && d.moodState !== "normal").map(d => d.name),
+                  recentDeaths: deadDwarves.slice(-5).map(d => d.name),
+                };
+
                 const summary = {
                   tick: currentState.tick,
                   year: currentState.year,
@@ -109,8 +155,12 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   paused: currentState.paused,
                   resources: currentState.resources,
                   dwarfCount: currentState.dwarves.length,
+                  aliveCount: livingDwarves.length,
                   activeJobs: currentState.jobs.length,
-                  recentEvents: currentState.events.slice(-3), // Last 3 events only for token efficiency
+                  recentEvents: currentState.events.slice(-5), // Last 5 events for better visibility
+                  dwarves: dwarfStatus,
+                  crises,
+                  statistics: currentState.statistics,
                 };
                 ipcServer.broadcast({ type: "state", data: summary });
               }
@@ -201,7 +251,9 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
   // Calculate derived values
   const avgHappiness = getAverageHappiness(state.dwarves);
   const mood = getDwarfMood(avgHappiness);
-  const aliveDwarves = state.dwarves.length;
+  const aliveDwarves = getLivingDwarfCount(state.dwarves);
+  const totalDwarves = state.dwarves.length;
+  const deaths = state.statistics?.deaths || 0;
 
   // Dwarf colors - each dwarf gets their own color
   const dwarfColors = ["cyan", "magenta", "yellow", "green", "blue", "red", "white"];
@@ -227,15 +279,24 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         let color = "white";
 
         if (dwarfHere) {
-          // Each dwarf gets their own color based on ID
-          color = dwarfColors[dwarfHere.id % dwarfColors.length];
-          // Face shows mood
-          if (dwarfHere.happiness < 30) {
-            char = "☹"; // Sad face
-          } else if (dwarfHere.happiness > 70) {
-            char = "☺"; // Happy face
+          if (!dwarfHere.alive) {
+            // Dead dwarf = corpse
+            char = "†";
+            color = "red";
           } else {
-            char = "○"; // Neutral face
+            // Each dwarf gets their own color based on ID
+            color = dwarfColors[dwarfHere.id % dwarfColors.length];
+            // Face shows mood or strange mood state
+            if (dwarfHere.moodState && dwarfHere.moodState !== "normal") {
+              char = "M"; // In a strange mood!
+              color = "magenta";
+            } else if (dwarfHere.happiness < 30) {
+              char = "☹"; // Sad face
+            } else if (dwarfHere.happiness > 70) {
+              char = "☺"; // Happy face
+            } else {
+              char = "○"; // Neutral face
+            }
           }
         } else if (digJob && tile?.type === "wall") {
           char = "d";
@@ -265,6 +326,9 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
               break;
             case "bed":
               color = "yellow";
+              break;
+            case "farm":
+              color = "green";
               break;
             default:
               color = "white";
@@ -334,8 +398,9 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
       {/* Dwarf Status */}
       <Box paddingX={1} marginBottom={1}>
         <Text>
-          Dwarves: <Text color="white">{aliveDwarves}/7</Text>
+          Dwarves: <Text color={aliveDwarves > 0 ? "white" : "red"}>{aliveDwarves}/{totalDwarves}</Text>
           {"  "}
+          {deaths > 0 && <><Text color="red">Deaths: {deaths}</Text>{"  "}</>}
           Happiness: <Text color={avgHappiness > 60 ? "green" : avgHappiness > 30 ? "yellow" : "red"}>
             {mood}
           </Text>
@@ -376,7 +441,8 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           <Text><Text color="yellow">○</Text>=Meh   <Text color="white">.</Text>=Floor</Text>
           <Text><Text color="red">☹</Text>=Sad   <Text color="cyan">~</Text>=Water</Text>
           <Text><Text color="green">^</Text>=Tree  <Text color="magenta">X</Text>=Workshop</Text>
-          <Text color="yellow">d=Dig job</Text>
+          <Text><Text color="red">†</Text>=Corpse <Text color="green">%</Text>=Farm</Text>
+          <Text><Text color="magenta">M</Text>=Mood  <Text color="yellow">d</Text>=Dig job</Text>
           <Text> </Text>
           <Text bold color="cyan">KEYS</Text>
           <Text dimColor>p=pause s=save</Text>

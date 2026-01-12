@@ -103,6 +103,10 @@ export function getTileChar(tile: Tile): string {
       return "≈";
     case "bed":
       return "=";
+    case "farm":
+      return "%";
+    case "corpse":
+      return "†";
     default:
       return "?";
   }
@@ -131,6 +135,10 @@ export function getTileColor(tile: Tile): string {
       return "cyan";
     case "bed":
       return "yellow";
+    case "farm":
+      return "green";
+    case "corpse":
+      return "red";
     default:
       return "white";
   }
