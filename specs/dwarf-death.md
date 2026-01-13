@@ -64,6 +64,10 @@ statistics: {
 | Critical threshold | 90 | Hunger/thirst level triggering death countdown |
 | Death countdown | 100 ticks | Consecutive critical ticks before death (~50 seconds) |
 | Warning interval | 50 ticks | How often starving/dehydrating warnings appear |
+| Hunger rate | 0.5/tick | Reaches critical in 180 ticks (~90 seconds) |
+| Thirst rate | 1.0/tick | Reaches critical in 90 ticks (~45 seconds) |
+| Starting food | 100 | ~14 cycles for 7 dwarves |
+| Starting drink | 20 | ~2 cycles for 7 dwarves, first warnings ~2 min, deaths ~3 min |
 
 ## Corpse Behavior
 

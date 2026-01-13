@@ -64,7 +64,7 @@ export function createStartingDwarves(): Dwarf[] {
 export function updateDwarfNeeds(dwarf: Dwarf, delta: number = 1): void {
   // Increase hunger and thirst over time
   dwarf.hunger = Math.min(100, dwarf.hunger + delta * 0.5);
-  dwarf.thirst = Math.min(100, dwarf.thirst + delta * 0.7);
+  dwarf.thirst = Math.min(100, dwarf.thirst + delta * 1.0);
 
   // Decrease energy if working
   if (dwarf.currentTask) {
