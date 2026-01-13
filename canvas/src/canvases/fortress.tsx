@@ -4,14 +4,18 @@ import type {
   FortressConfig,
   FortressState,
   FortressCommand,
+  FortressSummary,
 } from "../scenarios/fortress/types";
 import { createInitialState, processTick, handleCommand } from "../lib/fortress-sim/engine";
 import { getTileChar } from "../lib/fortress-sim/map";
 import { getAverageHappiness, getDwarfMood, getLivingDwarfCount } from "../lib/fortress-sim/dwarf";
 import { saveFortress, loadFortress } from "../lib/fortress-sim/save";
 import { restoreEventIdCounter } from "../lib/fortress-sim/events";
+import { buildInspectResult } from "../lib/fortress-sim/inspect";
+import { formatSummaryAsMarkdown } from "../lib/markdown-formatter";
+import { renderScreenshot } from "../lib/screenshot";
 import { createIPCServer } from "../ipc/server";
-import type { ControllerMessage } from "../ipc/types";
+import type { ControllerMessage, Viewport } from "../ipc/types";
 
 interface Props {
   id: string;
@@ -121,14 +125,16 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
               // Send enhanced summary with crisis alerts and statistics
               // Use stateRef.current to avoid stale closure bug
               if (ipcServer) {
+                const summaryMsg = msg as { type: "getSummary"; format?: "json" | "markdown" };
                 const currentState = stateRef.current;
                 const livingDwarves = currentState.dwarves.filter(d => d.alive);
                 const deadDwarves = currentState.dwarves.filter(d => !d.alive);
 
-                // Build dwarf status array
+                // Build dwarf status array with position
                 const dwarfStatus = currentState.dwarves.map(d => ({
                   id: d.id,
                   name: d.name,
+                  position: { x: d.x, y: d.y },
                   labor: d.labor,
                   hunger: d.hunger,
                   thirst: d.thirst,
@@ -148,7 +154,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   recentDeaths: deadDwarves.slice(-5).map(d => d.name),
                 };
 
-                const summary = {
+                const summary: FortressSummary = {
                   tick: currentState.tick,
                   year: currentState.year,
                   season: currentState.season,
@@ -157,12 +163,49 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   dwarfCount: currentState.dwarves.length,
                   aliveCount: livingDwarves.length,
                   activeJobs: currentState.jobs.length,
-                  recentEvents: currentState.events.slice(-5), // Last 5 events for better visibility
+                  recentEvents: currentState.events.slice(-5),
                   dwarves: dwarfStatus,
                   crises,
                   statistics: currentState.statistics,
                 };
-                ipcServer.broadcast({ type: "state", data: summary });
+
+                // Return markdown by default, JSON if explicitly requested
+                if (summaryMsg.format === "json") {
+                  ipcServer.broadcast({ type: "state", data: summary });
+                } else {
+                  const markdown = formatSummaryAsMarkdown(summary, fortressName);
+                  ipcServer.broadcast({ type: "state", data: markdown });
+                }
+              }
+            } else if (msg.type === "screenshot") {
+              // Capture PNG screenshot
+              if (ipcServer) {
+                const screenshotMsg = msg as { type: "screenshot"; viewport?: Viewport };
+                renderScreenshot(stateRef.current, fortressName, {
+                  fortressId: id,
+                  viewport: screenshotMsg.viewport,
+                }).then((result) => {
+                  ipcServer.broadcast({
+                    type: "screenshot",
+                    path: result.path,
+                    tick: stateRef.current.tick,
+                    dimensions: result.dimensions,
+                  });
+                }).catch((error) => {
+                  ipcServer.broadcast({ type: "error", message: `Screenshot failed: ${error.message}` });
+                });
+              }
+            } else if (msg.type === "inspect") {
+              // Spatial query
+              if (ipcServer) {
+                const inspectMsg = msg as { type: "inspect"; x: number; y: number; radius?: number };
+                const result = buildInspectResult(
+                  stateRef.current,
+                  inspectMsg.x,
+                  inspectMsg.y,
+                  inspectMsg.radius ?? 0
+                );
+                ipcServer.broadcast({ type: "inspect", data: result });
               }
             } else if (msg.type === "close") {
               exit();

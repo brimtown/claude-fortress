@@ -137,6 +137,7 @@ export interface FortressState {
 export interface DwarfStatus {
   id: number;
   name: string;
+  position: { x: number; y: number }; // Dwarf location for spatial reasoning
   labor: Labor;
   hunger: number;
   thirst: number;
@@ -181,6 +182,43 @@ export type FortressCommand =
   | { type: "assign"; dwarfId: number; labor: Labor }
   | { type: "pause"; paused: boolean }
   | { type: "save" };
+
+// Tile info for inspect results
+export interface TileInfo {
+  x: number;
+  y: number;
+  type: TileType;
+  resource?: "stone" | "iron" | "gold" | "copper";
+  designation?: "dig" | "channel";
+}
+
+// Building info for inspect results
+export interface BuildingInfo {
+  x: number;
+  y: number;
+  type: "workshop" | "stockpile" | "farm" | "still" | "bed";
+  producing?: string;
+}
+
+// Job info for inspect results
+export interface JobInfo {
+  id: number;
+  x: number;
+  y: number;
+  type: "dig" | "build" | "haul" | "produce";
+  progress: number;
+  assignedTo?: string;
+}
+
+// Result of spatial inspect query
+export interface InspectResult {
+  center: { x: number; y: number };
+  radius: number;
+  tiles: TileInfo[];
+  dwarves: DwarfStatus[];
+  buildings: BuildingInfo[];
+  jobs: JobInfo[];
+}
 
 // Configuration sent when spawning fortress canvas
 export interface FortressConfig {

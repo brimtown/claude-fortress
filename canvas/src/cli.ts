@@ -215,13 +215,21 @@ program
 // Fortress-specific commands
 program
   .command("query <id>")
-  .description("Query fortress state (summary by default, --full for complete state)")
+  .description("Query fortress state (markdown summary by default)")
   .option("--full", "Get full state including map (larger response)")
+  .option("--format <type>", "Output format: markdown (default) or json", "markdown")
   .option("--socket <path>", "Override socket path")
   .action(async (id: string, options) => {
     const { getSocketPath } = await import("./ipc/types");
     const socketPath = options.socket || getSocketPath(id);
-    const queryType = options.full ? "getState" : "getSummary";
+
+    // Determine query type and format
+    let queryMsg: Record<string, unknown>;
+    if (options.full) {
+      queryMsg = { type: "getState" };
+    } else {
+      queryMsg = { type: "getSummary", format: options.format };
+    }
 
     try {
       let resolved = false;
@@ -242,15 +250,19 @@ program
               resolved = true;
               const response = JSON.parse(data.toString().trim());
               if (response.type === "state") {
-                resolve(JSON.stringify(response.data, null, 2));
+                // If data is a string (markdown), output directly; otherwise JSON stringify
+                if (typeof response.data === "string") {
+                  resolve(response.data);
+                } else {
+                  resolve(JSON.stringify(response.data, null, 2));
+                }
               } else {
                 resolve(JSON.stringify(response, null, 2));
               }
               socket.end();
             },
             open(socket) {
-              const msg = JSON.stringify({ type: queryType });
-              socket.write(msg + "\n");
+              socket.write(JSON.stringify(queryMsg) + "\n");
             },
             close() {
               if (!resolved) {
@@ -272,6 +284,153 @@ program
       console.log(result);
     } catch (err) {
       console.error(`Failed to query fortress '${id}':`, err);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("screenshot <id>")
+  .description("Capture a PNG screenshot of the fortress")
+  .option("--socket <path>", "Override socket path")
+  .option("--viewport <json>", "Viewport region as JSON: {x,y,width,height}")
+  .action(async (id: string, options) => {
+    const { getSocketPath } = await import("./ipc/types");
+    const socketPath = options.socket || getSocketPath(id);
+
+    let viewport: { x: number; y: number; width: number; height: number } | undefined;
+    if (options.viewport) {
+      try {
+        viewport = JSON.parse(options.viewport);
+      } catch {
+        console.error("Invalid viewport JSON. Example: '{\"x\":0,\"y\":0,\"width\":20,\"height\":10}'");
+        process.exit(1);
+      }
+    }
+
+    try {
+      let resolved = false;
+      const result = await new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            reject(new Error("Timeout waiting for screenshot (10s)"));
+          }
+        }, 10000);
+
+        Bun.connect({
+          unix: socketPath,
+          socket: {
+            data(socket, data) {
+              if (resolved) return;
+              clearTimeout(timeout);
+              resolved = true;
+              const response = JSON.parse(data.toString().trim());
+              if (response.type === "screenshot") {
+                resolve(response.path);
+              } else if (response.type === "error") {
+                reject(new Error(response.message));
+              } else {
+                resolve(JSON.stringify(response, null, 2));
+              }
+              socket.end();
+            },
+            open(socket) {
+              const msg = viewport
+                ? JSON.stringify({ type: "screenshot", viewport })
+                : JSON.stringify({ type: "screenshot" });
+              socket.write(msg + "\n");
+            },
+            close() {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                reject(new Error("Connection closed before response"));
+              }
+            },
+            error(socket, error) {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                reject(error);
+              }
+            },
+          },
+        });
+      });
+      console.log(`Screenshot saved: ${result}`);
+    } catch (err) {
+      console.error(`Failed to capture screenshot for fortress '${id}':`, err);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("inspect <id> <x> <y>")
+  .description("Inspect tiles and entities at a location")
+  .option("--socket <path>", "Override socket path")
+  .option("--radius <n>", "Search radius (default: 0)", "0")
+  .action(async (id: string, xStr: string, yStr: string, options) => {
+    const { getSocketPath } = await import("./ipc/types");
+    const socketPath = options.socket || getSocketPath(id);
+
+    const x = parseInt(xStr, 10);
+    const y = parseInt(yStr, 10);
+    const radius = parseInt(options.radius, 10) || 0;
+
+    if (isNaN(x) || isNaN(y)) {
+      console.error("x and y must be integers");
+      process.exit(1);
+    }
+
+    try {
+      let resolved = false;
+      const result = await new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            reject(new Error("Timeout waiting for inspect response (5s)"));
+          }
+        }, 5000);
+
+        Bun.connect({
+          unix: socketPath,
+          socket: {
+            data(socket, data) {
+              if (resolved) return;
+              clearTimeout(timeout);
+              resolved = true;
+              const response = JSON.parse(data.toString().trim());
+              if (response.type === "inspect") {
+                resolve(JSON.stringify(response.data, null, 2));
+              } else {
+                resolve(JSON.stringify(response, null, 2));
+              }
+              socket.end();
+            },
+            open(socket) {
+              const msg = JSON.stringify({ type: "inspect", x, y, radius });
+              socket.write(msg + "\n");
+            },
+            close() {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                reject(new Error("Connection closed before response"));
+              }
+            },
+            error(socket, error) {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                reject(error);
+              }
+            },
+          },
+        });
+      });
+      console.log(result);
+    } catch (err) {
+      console.error(`Failed to inspect fortress '${id}' at (${x}, ${y}):`, err);
       process.exit(1);
     }
   });
