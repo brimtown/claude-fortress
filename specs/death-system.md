@@ -57,6 +57,22 @@ statistics: {
 }
 ```
 
+## Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| Critical threshold | 90 | Hunger/thirst level triggering death countdown |
+| Death countdown | 100 ticks | Consecutive critical ticks before death (~50 seconds) |
+| Warning interval | 50 ticks | How often starving/dehydrating warnings appear |
+
+## Corpse Behavior
+
+- Corpse remains at death location (x, y preserved)
+- Rendered as `†` (red) on the map
+- Dead dwarves excluded from job assignment
+- Dead dwarves excluded from movement updates
+- Current job cancelled on death (`currentJob` cleared)
+
 ## Files Modified
 
 - `types.ts` - Death fields, DeathCause type

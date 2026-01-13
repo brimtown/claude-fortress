@@ -230,11 +230,11 @@ spawn("tmux", ["send-keys", "-t", paneId, `bash ${wrapperScript}`, "Enter"]);
 - Auto-saves every 10 ticks (5 seconds real-time)
 - Also saves on 's' key press and on exit (q)
 
-### Dwarves Don't Move
-- MVP simplification: dwarves stay in starting positions
-- They still consume food/drink and have needs
-- Position (x,y) exists in state but not updated
-- **TODO**: Add simple movement AI
+### Movement System
+- Dwarves move using greedy pathfinding (see `movement.ts`)
+- They path to jobs, wander when idle, seek food/drink when critical
+- Berserk dwarves path toward targets (handled in `moods.ts`)
+- See `specs/movement-system.md` for full documentation
 
 ### Dig Command Improvements (FIXED 2026-01-08)
 **Problem**: Previously, dig commands only created jobs for wall tiles adjacent to existing floors. This caused:
@@ -343,15 +343,14 @@ Make the fortress prettier and easier to read:
 ### 🏗️ Fun Subsystems to Flesh Out
 Core gameplay mechanics that would make it feel more like DF:
 
-- [ ] **Death system** - Dwarves actually die from starvation/dehydration
-  - Corpses appear on map (`X`)
-  - Ghost haunting chance if unhappy death
-  - Memorial engravings for legendary dwarves
-- [ ] **Workshop production** - Workshops actually produce items over time
-  - Still produces drink from plants
-  - Carpenter produces beds/barrels from wood
-  - Smelter produces metal bars from ore
-  - Production jobs assigned like dig jobs
+- [x] **Death system** - Dwarves die from starvation/dehydration ✅ IMPLEMENTED
+  - Corpses appear on map (`†`)
+  - See `specs/death-system.md`
+  - TODO: Ghost haunting, memorial engravings
+- [x] **Workshop production** - Workshops produce items over time ✅ IMPLEMENTED
+  - Still produces drink, farms produce food
+  - See `specs/production.md`
+  - TODO: Carpenter, smelter subtypes
 - [ ] **Hauling system** - Items need to be moved to stockpiles
   - Resources have locations on map
   - Haulers pathfind to pick up and deliver
@@ -400,7 +399,8 @@ Features that enhance emergent stories:
 - [ ] **Historical events** - Track fortress timeline
 - [ ] **Engraved records** - Dwarves carve history into walls
 - [ ] **Tavern visitors** - Bards, merchants, performers
-- [ ] **Strange moods** - Dwarves create artifacts or go berserk
+- [x] **Strange moods** - Dwarves create artifacts or go berserk ✅ IMPLEMENTED
+  - See `specs/strange-moods.md`
 
 ## 🎯 How to Resume Development
 
@@ -556,7 +556,7 @@ The send-command.ts utility works but `nc -U` is simpler and more direct. Keep b
 - Building workshop: -10 wood, -15 stone
 
 ### Random Events
-- Migrant wave: 1% chance per tick (1-3 dwarves)
+- Migrant wave: 0.1% chance per tick (1-3 dwarves)
 - Resource warning: Every 100 ticks if food/drink <20
 - Season change: Every 300 ticks
 

@@ -62,6 +62,33 @@ Every 20 ticks, the engine checks each production building:
 
 Without production, starting resources (~100 food, ~80 drink) deplete in ~200 ticks.
 
+## Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| Auto-queue interval | 20 ticks | How often engine checks for new production jobs |
+| Output quantity | 5 | Default resources produced per job |
+| Progress rate | 10% per tick | Job completion speed |
+| Ticks to complete | ~10 | Time from start to resource output |
+
+## Job Structure
+
+```typescript
+interface ProductionJob extends Job {
+  type: "produce";
+  outputType: "food" | "drink";
+  outputQuantity: number;      // Default: 5
+  buildingSubtype: string;     // "still" | "farm"
+}
+```
+
+## Building Costs
+
+| Building | Wood | Stone | Notes |
+|----------|------|-------|-------|
+| Workshop (still) | 10 | 15 | Requires floor tile |
+| Farm | 0 | 0 | Free, just needs floor |
+
 ## Files
 
 - `types.ts` - `"produce"` job type, `"farm"` building/tile

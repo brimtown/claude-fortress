@@ -18,8 +18,10 @@ Dwarves can be struck by strange moods, claiming workshops to create legendary a
 ## Mood Types
 
 ```typescript
-type MoodState = "fey" | "possessed" | "secretive" | "melancholic" | "berserk";
+type MoodState = "normal" | "fey" | "possessed" | "secretive" | "melancholic" | "berserk";
 ```
+
+Note: `"normal"` or `undefined` both indicate no active mood.
 
 | Mood | Description |
 |------|-------------|
@@ -93,10 +95,48 @@ moodsFailed: number;
 artifactsCreated: number;
 ```
 
+## Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| Trigger chance | 0.05% per tick | ~once per 17 minutes of real time |
+| Deadline | 200 ticks | ~100 seconds to complete artifact |
+| Progress rate | 2% per tick | ~50 ticks to complete if materials available |
+| Material cost | 5 per demand | Each demanded material consumes 5 units |
+| Unhappy weight | 3x | Happiness < 40 increases trigger chance |
+| Very unhappy weight | 5x | Happiness < 20 increases trigger chance |
+| Berserk/melancholic | 50/50 | Random outcome on failure |
+| Attacker death | 50% | Chance berserk attacker dies in fight |
+
+## Movement During Moods
+
+Mood-struck dwarves use separate movement logic in `moods.ts`:
+
+**Working moods (fey/possessed/secretive):**
+- Greedy pathfinding toward claimed workshop
+- Check walkability before each move
+- Stop when within 1 tile of workshop
+
+**Berserk:**
+- Find nearest living dwarf
+- Move one tile toward target each tick
+- Attack when adjacent (Manhattan distance <= 1)
+
+**Melancholic:**
+- No movement changes
+- Accelerated hunger/thirst (+2 per tick)
+- Dies via normal death system
+
+## Workshop Destruction
+
+If a claimed workshop is destroyed during a mood:
+- Mood fails immediately
+- Dwarf goes melancholic or berserk (50/50)
+
 ## Files
 
-- `moods.ts` - Core mood system (NEW, ~430 lines)
+- `moods.ts` - Core mood system (~437 lines)
 - `types.ts` - MoodState, mood fields
 - `engine.ts` - `updateMoods()` call
-- `movement.ts` - Skip mood dwarves
+- `movement.ts` - Skip mood dwarves (handled by moods.ts)
 - `events.ts` - Mood event messages
