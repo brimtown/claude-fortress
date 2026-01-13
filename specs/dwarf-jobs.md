@@ -1,11 +1,11 @@
 ---
-title: Job System
+title: Dwarf Jobs
 date: 2026-01-12
 status: implemented
-dependencies: [dwarf-system, movement-system, production]
+dependencies: [dwarf-movement, fortress-production]
 ---
 
-# Job System
+# Dwarf Jobs
 
 The job system manages work designations and task assignment for dwarves.
 

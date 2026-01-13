@@ -1,11 +1,11 @@
 ---
-title: Movement System
+title: Dwarf Movement
 date: 2026-01-12
 status: implemented
-dependencies: [job-system, strange-moods]
+dependencies: [dwarf-jobs, dwarf-moods]
 ---
 
-# Movement System
+# Dwarf Movement
 
 Dwarves navigate the fortress using simple greedy pathfinding, moving toward jobs or wandering when idle.
 

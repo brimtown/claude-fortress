@@ -1,10 +1,11 @@
 ---
-title: Strange Moods
+title: Dwarf Moods
 date: 2026-01-11
 status: implemented
+dependencies: [dwarf-death, fortress-production]
 ---
 
-# Strange Moods
+# Dwarf Moods
 
 Dwarves can be struck by strange moods, claiming workshops to create legendary artifacts - or descending into madness if materials aren't provided.
 

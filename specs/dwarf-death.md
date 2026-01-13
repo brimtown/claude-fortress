@@ -1,10 +1,10 @@
 ---
-title: Death System
+title: Dwarf Death
 date: 2026-01-11
 status: implemented
 ---
 
-# Death System
+# Dwarf Death
 
 Dwarves can now die from starvation and dehydration, creating real stakes and enabling the "losing is fun" experience.
 

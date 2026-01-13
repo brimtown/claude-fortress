@@ -1,10 +1,11 @@
 ---
-title: Production System
+title: Fortress Production
 date: 2026-01-11
 status: implemented
+dependencies: [dwarf-jobs]
 ---
 
-# Production System
+# Fortress Production
 
 Workshops and farms generate resources, enabling survival through active management.
 

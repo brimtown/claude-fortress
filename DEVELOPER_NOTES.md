@@ -234,7 +234,7 @@ spawn("tmux", ["send-keys", "-t", paneId, `bash ${wrapperScript}`, "Enter"]);
 - Dwarves move using greedy pathfinding (see `movement.ts`)
 - They path to jobs, wander when idle, seek food/drink when critical
 - Berserk dwarves path toward targets (handled in `moods.ts`)
-- See `specs/movement-system.md` for full documentation
+- See `specs/dwarf-movement.md` for full documentation
 
 ### Dig Command Improvements (FIXED 2026-01-08)
 **Problem**: Previously, dig commands only created jobs for wall tiles adjacent to existing floors. This caused:
@@ -345,11 +345,11 @@ Core gameplay mechanics that would make it feel more like DF:
 
 - [x] **Death system** - Dwarves die from starvation/dehydration ✅ IMPLEMENTED
   - Corpses appear on map (`†`)
-  - See `specs/death-system.md`
+  - See `specs/dwarf-death.md`
   - TODO: Ghost haunting, memorial engravings
 - [x] **Workshop production** - Workshops produce items over time ✅ IMPLEMENTED
   - Still produces drink, farms produce food
-  - See `specs/production.md`
+  - See `specs/fortress-production.md`
   - TODO: Carpenter, smelter subtypes
 - [ ] **Hauling system** - Items need to be moved to stockpiles
   - Resources have locations on map
@@ -400,7 +400,7 @@ Features that enhance emergent stories:
 - [ ] **Engraved records** - Dwarves carve history into walls
 - [ ] **Tavern visitors** - Bards, merchants, performers
 - [x] **Strange moods** - Dwarves create artifacts or go berserk ✅ IMPLEMENTED
-  - See `specs/strange-moods.md`
+  - See `specs/dwarf-moods.md`
 
 ## 🎯 How to Resume Development
 
