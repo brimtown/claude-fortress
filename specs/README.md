@@ -2,20 +2,16 @@
 
 This directory contains specifications for game systems implemented in Claude Fortress.
 
-## Dwarf Specs
+## Specs
 
 | Spec | Description | Date |
 |------|-------------|------|
-| [Death](./dwarf-death.md) | Starvation, dehydration, and corpse mechanics | 2026-01-11 |
-| [Moods](./dwarf-moods.md) | Artifact creation and insanity mechanics | 2026-01-11 |
-| [Movement](./dwarf-movement.md) | Pathfinding and navigation | 2026-01-12 |
-| [Jobs](./dwarf-jobs.md) | Work designations and task assignment | 2026-01-12 |
-
-## Fortress Specs
-
-| Spec | Description | Date |
-|------|-------------|------|
-| [Production](./fortress-production.md) | Workshop and farm resource generation | 2026-01-11 |
+| [dwarf-death](./dwarf-death.md) | Starvation, dehydration, and corpse mechanics | 2026-01-11 |
+| [dwarf-moods](./dwarf-moods.md) | Artifact creation and insanity mechanics | 2026-01-11 |
+| [dwarf-movement](./dwarf-movement.md) | Pathfinding and navigation | 2026-01-12 |
+| [dwarf-jobs](./dwarf-jobs.md) | Work designations and task assignment | 2026-01-12 |
+| [fortress-production](./fortress-production.md) | Workshop and farm resource generation | 2026-01-11 |
+| [agent-observability](./agent-observability.md) | How Claude perceives fortress state via IPC | 2026-01-12 |
 
 ## Adding New Specs
 
