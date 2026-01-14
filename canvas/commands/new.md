@@ -24,6 +24,12 @@ Generate dramatic names like: "Copperwhispers", "Boatmurdered", "Stakeddaggers",
 
 **Always use `"save":true` to enable autosave.**
 
+**First, ensure dependencies are installed** (fast if already done):
+```bash
+cd "${CLAUDE_PLUGIN_ROOT}" && bun install --frozen-lockfile
+```
+
+Then spawn the fortress:
 ```bash
 cd "${CLAUDE_PLUGIN_ROOT}" && bun src/cli.ts spawn fortress --config='{"fortressName":"<NAME>","save":true}'
 ```
