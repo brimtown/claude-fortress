@@ -45,6 +45,9 @@ export interface Dwarf {
   deathCause?: DeathCause;      // How they died
   deathTick?: number;           // When they died
 
+  // Grief system
+  griefTicks?: number;          // Ticks remaining in grief state (work penalty)
+
   // Strange Mood system
   moodState?: MoodState;        // Current mood (undefined = normal)
   claimedBuildingId?: number;   // Workshop claimed during strange mood
@@ -131,6 +134,10 @@ export interface FortressState {
   season: Season;
   paused: boolean;
   statistics: FortressStatistics;
+
+  // Losing system
+  fallen: boolean;      // True when fortress has collapsed (all dead)
+  wealth: number;       // Cached wealth for migration calculations
 }
 
 // Dwarf status for summary (lighter than full Dwarf)

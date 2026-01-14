@@ -132,4 +132,26 @@ export const EventMessages = {
   farmHarvest: (quantity: number) => {
     return `Farm harvest: +${quantity} food`;
   },
+
+  // Tantrum/grief events
+  tantrum: (name: string, type: "berserk" | "melancholic") => {
+    if (type === "berserk") {
+      return `${name} has gone berserk from grief!`;
+    }
+    return `${name} has fallen into despair.`;
+  },
+
+  // Migration events
+  migrationBlocked: () => {
+    return "Migrants refused to journey to such a dangerous fortress.";
+  },
+
+  noMigrants: () => {
+    return "The fortress attracted no migrants this season.";
+  },
+
+  // Fortress collapse
+  fortressFallen: () => {
+    return "Your fortress has crumbled to its end...";
+  },
 };

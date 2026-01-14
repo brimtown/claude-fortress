@@ -51,9 +51,11 @@ Or trigger naturally with: "strike the earth", "fortress", "embark", "let's play
 - Real-time ASCII simulation (500ms ticks)
 - Dwarf needs: hunger, thirst, happiness
 - Death by starvation/dehydration
+- Grief system and tantrum spirals
 - Strange moods and artifact creation
 - Job system: dig, build, assign labor
-- Migrant waves and seasons
+- Wealth-based migration
+- Fortress collapse with end-game statistics
 - Autosave to `~/.claude/fortress-saves/`
 
 ## Troubleshooting

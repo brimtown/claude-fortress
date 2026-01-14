@@ -150,7 +150,12 @@ export function isAtJobLocation(dwarf: Dwarf, job: Job): boolean {
  */
 export function workOnJob(state: FortressState, dwarf: Dwarf, job: Job): boolean {
   // Work rate: ~10 progress per tick (10 ticks to complete)
-  job.progress += 10;
+  // Grief penalty: 50% slower while grieving
+  let progressRate = 10;
+  if (dwarf.griefTicks && dwarf.griefTicks > 0) {
+    progressRate = 5;
+  }
+  job.progress += progressRate;
 
   if (job.progress >= 100) {
     completeJob(state, job);

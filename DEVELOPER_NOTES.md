@@ -1,7 +1,7 @@
 # Claude Fortress - Developer Notes
 
-**Last Updated**: 2026-01-08
-**Status**: ✅ WORKING - Movement, jobs, IPC queries, autonomous debugging, improved dig command!
+**Last Updated**: 2026-01-14
+**Status**: ✅ WORKING - Full gameplay loop with grief spirals, tantrum cascades, wealth-based migration, and fortress collapse!
 
 ## 🚀 Quick Start for New Sessions
 
@@ -261,13 +261,18 @@ spawn("tmux", ["send-keys", "-t", paneId, `bash ${wrapperScript}`, "Enter"]);
 - ✅ IPC socket created and listening
 - ✅ Commands sent via `nc` work perfectly
 - ✅ Dig command with smart job assignment (designate large areas, dwarves dig from outside in!)
-- ✅ Build command deducts resources (untested but code exists)
+- ✅ Build command deducts resources
 - ✅ Auto-save every 10 ticks
 - ✅ Load from save on restart
-- ✅ Migrant waves (1% chance per tick)
+- ✅ Wealth-based migration (every 500 ticks, wealth tiers determine migrant count)
+- ✅ Migration blocked by dangerous reputation (2+ recent deaths)
 - ✅ Season progression (every 300 ticks)
 - ✅ Resource consumption (dwarves eat/drink)
 - ✅ Happiness system based on needs
+- ✅ Grief system (deaths cause happiness loss for all dwarves)
+- ✅ Tantrum spiral (very unhappy dwarves can go berserk or melancholic)
+- ✅ Fortress collapse detection (game over when all dwarves dead)
+- ✅ End screen with statistics
 - ✅ Event log with DF-style messages
 
 ## ⚡ Dev Workflow - Fast Iteration Cycle
@@ -546,7 +551,7 @@ The send-command.ts utility works but `nc -U` is simpler and more direct. Keep b
 
 ### Dwarf Needs (per tick)
 - Hunger: +0.5/tick (critical at 90+)
-- Thirst: +0.7/tick (critical at 90+)
+- Thirst: +1.0/tick (critical at 90+) - faster than hunger!
 - Energy: -0.3/tick when working, +0.5/tick when idle
 
 ### Resource Consumption
@@ -555,10 +560,24 @@ The send-command.ts utility works but `nc -U` is simpler and more direct. Keep b
 - Mining: +1 stone per tile dug
 - Building workshop: -10 wood, -15 stone
 
-### Random Events
-- Migrant wave: 0.1% chance per tick (1-3 dwarves)
+### Wealth & Migration (every 500 ticks)
+- Wealth = resources + buildings×10 + artifacts×100 + dwarves×20
+- Wealth <100: no migrants ("attracted no migrants")
+- Wealth 100-299: 1 migrant
+- Wealth 300-599: 1-2 migrants
+- Wealth 600+: 1-3 migrants
+- 2+ deaths in last 500 ticks: "refused to journey to such a dangerous fortress"
+
+### Grief & Tantrum Spiral
+- Death causes 15-25 happiness loss for all living dwarves
+- Grieving dwarves work 50% slower for 200 ticks
+- Happiness <20: 0.5%/tick chance to snap (berserk or melancholic)
+- Berserk dwarves attack others, causing more deaths → more grief → spiral
+
+### Other Events
 - Resource warning: Every 100 ticks if food/drink <20
 - Season change: Every 300 ticks
+- Fortress collapse: All dwarves dead → game over screen
 
 ### Map Generation
 - 40x20 grid (fits most terminals)
@@ -570,8 +589,15 @@ The send-command.ts utility works but `nc -U` is simpler and more direct. Keep b
 ## 🚨 Common Errors & Fixes
 
 ### "Raw mode is not supported"
-**Cause**: Running via background Bash or non-interactive terminal
-**Fix**: Must run in actual tmux pane with interactive stdin
+**Cause**: Using `show` instead of `spawn`, or running in non-TTY environment (e.g., Claude Code's bash subprocess)
+**Fix**: Always use `spawn` (not `show`) - it creates a new tmux window with proper TTY support
+```bash
+# ❌ WRONG - fails in Claude Code bash
+bun run src/cli.ts show fortress --config '...'
+
+# ✅ CORRECT - works everywhere
+bun run src/cli.ts spawn fortress --config '...'
+```
 
 ### Socket file not created
 **Cause**: Fortress crashed on startup (likely React error)

@@ -9,7 +9,7 @@ import type {
   Labor,
 } from "../../scenarios/fortress/types";
 import { generateMap, MAP_WIDTH, MAP_HEIGHT } from "./map";
-import { createStartingDwarves, updateDwarfNeeds, createDwarf, killDwarf, getLivingDwarfCount } from "./dwarf";
+import { createStartingDwarves, updateDwarfNeeds, createDwarf, killDwarf, getLivingDwarfCount, calculateWealth, getRecentDeathCount } from "./dwarf";
 import {
   createStartingResources,
   consumeResources,
@@ -60,6 +60,8 @@ export function createInitialState(fortressName: string, seed?: number): Fortres
     season: "Spring",
     paused: false,
     statistics: createInitialStatistics(),
+    fallen: false,
+    wealth: 0,
   };
 }
 
@@ -139,6 +141,32 @@ export function processTick(state: FortressState): void {
     } else {
       dwarf.dehydrationTicks = 0; // Reset if no longer dehydrated
     }
+
+    // Grief recovery - countdown grief ticks
+    if (dwarf.griefTicks && dwarf.griefTicks > 0) {
+      dwarf.griefTicks--;
+    }
+
+    // Tantrum check - very unhappy dwarves can snap
+    const moodState = dwarf.moodState || "normal";
+    if (dwarf.happiness < 20 && moodState === "normal") {
+      // 0.5% chance per tick to snap when very unhappy
+      if (Math.random() < 0.005) {
+        if (Math.random() < 0.5) {
+          dwarf.moodState = "berserk";
+          dwarf.currentTask = "BERSERK!";
+          state.events.push(
+            createEvent(state.tick, EventMessages.tantrum(dwarf.name, "berserk"), "danger")
+          );
+        } else {
+          dwarf.moodState = "melancholic";
+          dwarf.currentTask = "melancholy...";
+          state.events.push(
+            createEvent(state.tick, EventMessages.tantrum(dwarf.name, "melancholic"), "warning")
+          );
+        }
+      }
+    }
   }
 
   // Track peak population
@@ -150,22 +178,47 @@ export function processTick(state: FortressState): void {
   // Update Strange Moods system
   updateMoods(state);
 
-  // Random events (low probability)
-  const rand = Math.random();
+  // Wealth-based migration (every 500 ticks)
+  if (state.tick % 500 === 0 && state.tick > 0) {
+    const wealth = calculateWealth(state);
+    state.wealth = wealth; // Cache for UI
+    const currentLivingCount = getLivingDwarfCount(state.dwarves);
+    const recentDeaths = getRecentDeathCount(state, 500);
 
-  // 0.1% chance of migrant wave (~once every 500 ticks / 4 minutes)
-  if (rand < 0.001) {
-    const count = 1 + Math.floor(Math.random() * 3); // 1-3 migrants
-    const labors: Labor[] = ["mining", "carpentry", "brewing", "farming", "hauling"];
-    for (let i = 0; i < count; i++) {
-      // Give migrants random useful labors
-      const labor = labors[Math.floor(Math.random() * labors.length)];
-      const newDwarf = createDwarf(5, 3, labor);
-      state.dwarves.push(newDwarf);
+    if (currentLivingCount === 0) {
+      // No one to welcome migrants - fortress fallen
+    } else if (recentDeaths >= 2) {
+      // Dangerous reputation blocks migrants
+      state.events.push(
+        createEvent(state.tick, EventMessages.migrationBlocked(), "warning")
+      );
+    } else {
+      // Wealth tiers determine migrant count
+      let migrantCount = 0;
+      if (wealth >= 600) {
+        migrantCount = 1 + Math.floor(Math.random() * 3); // 1-3
+      } else if (wealth >= 300) {
+        migrantCount = 1 + Math.floor(Math.random() * 2); // 1-2
+      } else if (wealth >= 100) {
+        migrantCount = 1;
+      }
+
+      if (migrantCount > 0) {
+        const labors: Labor[] = ["mining", "carpentry", "brewing", "farming", "hauling"];
+        for (let i = 0; i < migrantCount; i++) {
+          const labor = labors[Math.floor(Math.random() * labors.length)];
+          const newDwarf = createDwarf(5, 3, labor);
+          state.dwarves.push(newDwarf);
+        }
+        state.events.push(
+          createEvent(state.tick, EventMessages.migrantWave(migrantCount), "success")
+        );
+      } else {
+        state.events.push(
+          createEvent(state.tick, EventMessages.noMigrants(), "warning")
+        );
+      }
     }
-    state.events.push(
-      createEvent(state.tick, EventMessages.migrantWave(count), "success")
-    );
   }
 
   // Check for resource shortages every 100 ticks
@@ -225,6 +278,15 @@ export function processTick(state: FortressState): void {
         building.activeJobId = job.id;
       }
     }
+  }
+
+  // Check for fortress collapse (all dwarves dead)
+  if (!state.fallen && getLivingDwarfCount(state.dwarves) === 0) {
+    state.fallen = true;
+    state.paused = true;
+    state.events.push(
+      createEvent(state.tick, EventMessages.fortressFallen(), "danger")
+    );
   }
 
   // Trim events to keep memory reasonable

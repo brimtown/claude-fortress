@@ -413,6 +413,31 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     );
   }
 
+  // Show fortress fallen screen
+  if (state.fallen) {
+    const s = state.statistics;
+    return (
+      <Box flexDirection="column" width={80} height={30} alignItems="center" justifyContent="center">
+        <Box borderStyle="double" borderColor="red" paddingX={2} paddingY={1} flexDirection="column" alignItems="center">
+          <Text bold color="red">YOUR FORTRESS HAS CRUMBLED...</Text>
+          <Text> </Text>
+          <Text>"{fortressName}" has fallen.</Text>
+          <Text> </Text>
+          <Text>Survived: Year {state.year}, {state.season}</Text>
+          <Text>Peak Population: {s.peakPopulation}</Text>
+          <Text>Total Deaths: {s.deaths}</Text>
+          <Text dimColor>  Starvation: {s.deathsByStarvation}</Text>
+          <Text dimColor>  Dehydration: {s.deathsByDehydration}</Text>
+          <Text dimColor>  Insanity: {s.deathsByInsanity}</Text>
+          <Text dimColor>  Berserk: {s.deathsByBerserk}</Text>
+          <Text>Artifacts Created: {s.artifactsCreated || 0}</Text>
+          <Text> </Text>
+          <Text dimColor>Press 'q' to close...</Text>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box flexDirection="column" width={80} height={30}>
       {/* Header */}
@@ -435,6 +460,12 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           Drink: <Text color={state.resources.drink > 50 ? "cyan" : state.resources.drink > 20 ? "yellow" : "red"}>{state.resources.drink}</Text>
           {"  "}
           Jobs: <Text color={state.jobs.length > 0 ? "magenta" : "gray"}>{state.jobs.length}</Text>
+          {"  "}
+          Wealth: <Text color={
+            state.wealth >= 600 ? "green" :
+            state.wealth >= 300 ? "white" :
+            state.wealth >= 100 ? "yellow" : "red"
+          }>{state.wealth || 0}</Text>
         </Text>
       </Box>
 

@@ -12,6 +12,8 @@ This directory contains specifications for game systems implemented in Claude Fo
 | [dwarf-jobs](./dwarf-jobs.md) | Work designations and task assignment | 2026-01-12 |
 | [fortress-production](./fortress-production.md) | Workshop and farm resource generation | 2026-01-11 |
 | [agent-observability](./agent-observability.md) | How Claude perceives fortress state via IPC | 2026-01-12 |
+| [fortress-losing](./fortress-losing.md) | Grief spiral, tantrum cascade, and game over | 2026-01-14 |
+| [fortress-migration](./fortress-migration.md) | Wealth-based migration and death reputation | 2026-01-14 |
 
 ## Adding New Specs
 

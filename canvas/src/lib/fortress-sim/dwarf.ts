@@ -86,6 +86,11 @@ export function updateDwarfNeeds(dwarf: Dwarf, delta: number = 1): void {
   if (dwarf.energy < 20) happiness -= 15;
   else if (dwarf.energy > 80) happiness += 5;
 
+  // Grief penalty - significant while grieving
+  if (dwarf.griefTicks && dwarf.griefTicks > 0) {
+    happiness -= 25;
+  }
+
   dwarf.happiness = Math.max(0, Math.min(100, happiness));
 }
 
@@ -163,6 +168,9 @@ export function killDwarf(
   state.events.push(
     createEvent(state.tick, EventMessages.dwarfDeath(dwarf.name, cause), "danger")
   );
+
+  // Apply grief to all living dwarves
+  applyGrief(state, dwarf);
 }
 
 /**
@@ -170,4 +178,54 @@ export function killDwarf(
  */
 export function getLivingDwarfCount(dwarves: Dwarf[]): number {
   return dwarves.filter(d => d.alive).length;
+}
+
+/**
+ * Apply grief to all living dwarves when someone dies
+ * Part of the tantrum spiral mechanic
+ */
+export function applyGrief(state: FortressState, deadDwarf: Dwarf): void {
+  const livingDwarves = state.dwarves.filter(d => d.alive && d.id !== deadDwarf.id);
+
+  for (const dwarf of livingDwarves) {
+    // Base grief: -15 to -25 happiness
+    const griefAmount = 15 + Math.floor(Math.random() * 11);
+    dwarf.happiness = Math.max(0, dwarf.happiness - griefAmount);
+    // Add to grief duration (stacks with existing grief)
+    dwarf.griefTicks = (dwarf.griefTicks || 0) + 200;
+  }
+}
+
+/**
+ * Get count of recent deaths (for migration blocking)
+ */
+export function getRecentDeathCount(state: FortressState, windowTicks: number): number {
+  const cutoff = state.tick - windowTicks;
+  return state.dwarves.filter(d =>
+    !d.alive && d.deathTick !== undefined && d.deathTick >= cutoff
+  ).length;
+}
+
+/**
+ * Calculate fortress wealth for migration
+ */
+export function calculateWealth(state: FortressState): number {
+  let wealth = 0;
+
+  // Resources (1 point each)
+  wealth += state.resources.wood;
+  wealth += state.resources.stone;
+  wealth += state.resources.food;
+  wealth += state.resources.drink;
+
+  // Buildings (10 points each)
+  wealth += state.buildings.length * 10;
+
+  // Artifacts (100 points each)
+  wealth += (state.statistics.artifactsCreated || 0) * 100;
+
+  // Living dwarves (20 points each)
+  wealth += getLivingDwarfCount(state.dwarves) * 20;
+
+  return wealth;
 }
