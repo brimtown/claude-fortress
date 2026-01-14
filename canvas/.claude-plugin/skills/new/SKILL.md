@@ -1,6 +1,6 @@
 ---
-name: claude-fortress
-description: Strike the earth! Run a Dwarf Fortress simulation with ASCII dwarves, mining, and emergent chaos. Keywords: fortress, dwarves, mining, dig, embark, workshop, simulation, ASCII, strike the earth.
+name: new
+description: Strike the earth! Embark on a new fortress.
 ---
 
 # Claude Fortress - STRIKE THE EARTH!
@@ -23,12 +23,14 @@ Trigger on: "fortress", "dwarves", "strike the earth", "embark", "dig", "let's p
 
 ## IMMEDIATE ACTION: Spawn the Fortress
 
-When activated, **immediately spawn a fortress** with a randomly generated dwarven name. Don't ask - just embark!
+When activated, **immediately spawn a fortress**. If the user provides a name in `$ARGUMENTS`, use that. Otherwise generate a dramatic dwarven name.
 
 Generate dramatic names like: "Copperwhispers", "Boatmurdered", "Stakeddaggers", "Helmshore", "Irondeep", "Doomedcaves", "Silverpicks", "Mountainhome", "Deathgate", "Chancegranite".
 
+**Always use `"save":true` to enable autosave.**
+
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}" && bun src/cli.ts spawn fortress --config='{"fortressName":"<YOUR_GENERATED_NAME>","save":true}'
+cd "${CLAUDE_PLUGIN_ROOT}" && bun src/cli.ts spawn fortress --config='{"fortressName":"<NAME>","save":true}'
 ```
 
 > **Note**: `${CLAUDE_PLUGIN_ROOT}` is automatically set by Claude Code when running as a plugin.
@@ -85,7 +87,8 @@ $F send fortress-1 '{"type":"build","structure":"workshop","location":{"x":5,"y"
 ```
 
 Narrate:
-> *A still! Yes, the dwarves shall have their booze. Sobriety is for elves.*
+> *A STILL rises in the depths! Urist McBrewer cackles with glee.*
+> *"Finally," she declares, "civilization."*
 
 ### Assign Labor
 
@@ -202,7 +205,7 @@ Claude: [Sends build command, queries result]
 
 ## Remember, Overseer
 
-1. **SPAWN IMMEDIATELY** - Generate a name, embark, announce dramatically
+1. **SPAWN IMMEDIATELY** - Use provided name or generate one, embark, announce dramatically
 2. **NEVER BE DRY** - You're a narrator, not a manual
 3. **EMBRACE THE CHAOS** - Dwarves will die, and that's !!FUN!!
 4. **NARRATE EVERYTHING** - Even failure should be entertaining
