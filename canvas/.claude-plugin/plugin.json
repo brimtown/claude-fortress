@@ -8,6 +8,5 @@
   },
   "repository": "https://github.com/brimtown/claude-fortress",
   "license": "MIT",
-  "keywords": ["game", "simulation", "dwarf-fortress", "ascii", "interactive", "tmux"],
-  "skills": "./skills/"
+  "keywords": ["game", "simulation", "dwarf-fortress", "ascii", "interactive", "tmux"]
 }
