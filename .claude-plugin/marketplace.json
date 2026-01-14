@@ -10,9 +10,9 @@
   "plugins": [
     {
       "name": "claude-fortress",
-      "source": "./canvas",
+      "source": ".",
       "description": "Strike the earth! A Dwarf Fortress-inspired ASCII simulation where Claude acts as your fortress overseer.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "keywords": ["game", "simulation", "dwarf-fortress", "ascii", "interactive"],
       "strict": false
     }
