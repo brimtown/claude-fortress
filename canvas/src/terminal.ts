@@ -70,14 +70,37 @@ async function getCanvasPaneId(): Promise<string | null> {
     const file = Bun.file(CANVAS_PANE_FILE);
     if (await file.exists()) {
       const paneId = (await file.text()).trim();
-      // Verify the pane still exists by checking if tmux can find it
-      const result = spawnSync("tmux", ["display-message", "-t", paneId, "-p", "#{pane_id}"]);
+      if (!paneId) return null;
+
+      // Verify the pane still exists AND is running a canvas process
+      // Check both pane existence and what command it's running
+      const result = spawnSync("tmux", [
+        "display-message", "-t", paneId, "-p",
+        "#{pane_id}:#{pane_current_command}"
+      ]);
       const output = result.stdout?.toString().trim();
-      // Pane exists only if command succeeds AND returns the same pane ID
-      if (result.status === 0 && output === paneId) {
+
+      if (result.status !== 0 || !output) {
+        // Pane doesn't exist - clean up
+        await Bun.write(CANVAS_PANE_FILE, "");
+        return null;
+      }
+
+      const [returnedPaneId, currentCommand] = output.split(":");
+
+      // Pane must exist AND be running a canvas-related process
+      // Valid commands: bun (running canvas), bash (wrapper script), or the canvas process itself
+      const isCanvasProcess =
+        currentCommand === "bun" ||
+        currentCommand === "bash" ||
+        currentCommand?.includes("canvas") ||
+        currentCommand?.includes("cli.ts");
+
+      if (returnedPaneId === paneId && isCanvasProcess) {
         return paneId;
       }
-      // Stale pane reference - clean up the file
+
+      // Pane exists but is running something else (e.g., zsh, claude) - don't reuse
       await Bun.write(CANVAS_PANE_FILE, "");
     }
   } catch {

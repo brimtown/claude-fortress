@@ -1,0 +1,13 @@
+{
+  "name": "claude-fortress",
+  "version": "0.1.0",
+  "description": "Strike the earth! A Dwarf Fortress-inspired ASCII simulation where Claude acts as your fortress overseer.",
+  "author": {
+    "name": "Tim Brown",
+    "email": "brown.tim.lee@gmail.com"
+  },
+  "repository": "https://github.com/brimtown/claude-fortress",
+  "license": "MIT",
+  "keywords": ["game", "simulation", "dwarf-fortress", "ascii", "interactive", "tmux"],
+  "skills": "./skills/"
+}

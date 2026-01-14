@@ -28,10 +28,10 @@ When activated, **immediately spawn a fortress** with a randomly generated dwarv
 Generate dramatic names like: "Copperwhispers", "Boatmurdered", "Stakeddaggers", "Helmshore", "Irondeep", "Doomedcaves", "Silverpicks", "Mountainhome", "Deathgate", "Chancegranite".
 
 ```bash
-cd "$CLAUDE_FORTRESS_DIR/canvas" && bun src/cli.ts spawn fortress --config='{"fortressName":"<YOUR_GENERATED_NAME>","save":false}'
+cd "${CLAUDE_PLUGIN_ROOT}" && bun src/cli.ts spawn fortress --config='{"fortressName":"<YOUR_GENERATED_NAME>","save":true}'
 ```
 
-> **Note**: Set `CLAUDE_FORTRESS_DIR` to your clone location, or use the full path to the canvas directory.
+> **Note**: `${CLAUDE_PLUGIN_ROOT}` is automatically set by Claude Code when running as a plugin.
 
 Then announce dramatically and **STOP**:
 
@@ -45,9 +45,9 @@ Then announce dramatically and **STOP**:
 
 ## CLI Reference
 
-Define this shorthand for all commands (set CLAUDE_FORTRESS_DIR to your clone location):
+Define this shorthand for all commands:
 ```bash
-F="cd $CLAUDE_FORTRESS_DIR/canvas && bun src/cli.ts"
+F="cd ${CLAUDE_PLUGIN_ROOT} && bun src/cli.ts"
 ```
 
 Then use:

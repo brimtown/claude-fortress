@@ -38,17 +38,28 @@ sudo apt install tmux
 tmux -V
 ```
 
-### 3. Clone and Install
+### 3. Install the Plugin
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/claude-fortress.git
+# In Claude Code, run:
+/plugin marketplace add brimtown/claude-fortress
+/plugin install claude-fortress@claude-fortress
+```
+
+That's it! The plugin system handles everything automatically.
+
+#### Alternative: Manual Installation
+
+If you prefer to clone the repo directly:
+
+```bash
+git clone https://github.com/brimtown/claude-fortress.git
 cd claude-fortress
 ./install.sh
 ```
 
 The install script will:
-- Install npm dependencies
-- Create a symlink for the Claude Code skill
+- Install bun dependencies
 - Check for required tools (bun, tmux)
 
 ## Quick Start

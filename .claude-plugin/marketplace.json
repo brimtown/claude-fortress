@@ -1,18 +1,19 @@
 {
-  "name": "claude-canvas",
+  "name": "claude-fortress",
   "owner": {
-    "name": "David Siegel",
-    "email": "djsiegel@gmail.com"
+    "name": "Tim Brown",
+    "email": "brown.tim.lee@gmail.com"
   },
   "metadata": {
-    "description": "Claude Code plugin marketplace for interactive terminal TUI components"
+    "description": "Dwarf Fortress simulation for Claude Code - command dwarves through natural language"
   },
   "plugins": [
     {
-      "name": "canvas",
+      "name": "claude-fortress",
       "source": "./canvas",
-      "description": "Spawn and control interactive terminal displays (calendars, documents, flights) with real-time IPC communication",
+      "description": "Strike the earth! A Dwarf Fortress-inspired ASCII simulation where Claude acts as your fortress overseer.",
       "version": "0.1.0",
+      "keywords": ["game", "simulation", "dwarf-fortress", "ascii", "interactive"],
       "strict": false
     }
   ]
