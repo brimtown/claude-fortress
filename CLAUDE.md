@@ -145,4 +145,13 @@ echo '{"type":"command","command":{"type":"dig","area":{"x":12,"y":2,"width":5,"
 pkill -f "canvas-fortress"; rm -f /tmp/canvas-*.sock
 ```
 
-See `DEVELOPER_NOTES.md` for comprehensive documentation.
+### Plugin Testing
+
+```bash
+# Local development (from any directory)
+claude --plugin-dir /path/to/claude-fortress/canvas
+
+# Then use /claude-fortress:embark or the MCP tools directly
+```
+
+See `CONTRIBUTING.md` for development workflows, troubleshooting, and release process.
