@@ -14,6 +14,7 @@ import {
 import { spawnCanvas } from "./terminal";
 import { getSocketPath } from "./ipc/types";
 import type { FortressCommand, Labor } from "./scenarios/fortress/types";
+import { hasSave } from "./lib/fortress-sim/save";
 
 // Helper to send IPC message and get response
 async function sendIPC(
@@ -296,6 +297,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "embark": {
         const fortressName = (args?.name as string) || "Unnamed";
         const save = args?.save !== false;
+
+        // Check for existing save to prevent overwrites
+        if (save && hasSave(fortressName)) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `A fortress named "${fortressName}" already exists. Choose a different name to avoid overwriting the save.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
         const config = JSON.stringify({ fortressName, save });
 
         // Get plugin directory (where package.json lives)

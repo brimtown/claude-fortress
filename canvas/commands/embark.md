@@ -29,7 +29,19 @@ Then STOP.
 
 Use the `embark` tool immediately. If the user provides a name in `$ARGUMENTS`, use that. Otherwise generate a dramatic dwarven name.
 
-Good fortress names: "Copperwhispers", "Boatmurdered", "Stakeddaggers", "Helmshore", "Irondeep", "Doomedcaves", "Silverpicks", "Mountainhome", "Deathgate", "Chancegranite".
+**Name Generation:** Create UNIQUE compound names by combining two words. Don't reuse names you've seen before.
+
+Pattern: `[Prefix][Suffix]` as one word (e.g., "Irondeep", "Boatmurdered")
+
+| Prefixes | Suffixes |
+|----------|----------|
+| Metals: Iron, Copper, Gold, Silver, Bronze, Steel, Tin | Geography: deep, hall, cave, mountain, cliff, shore, ridge |
+| Stone: Granite, Basite, Obsidian, Marble, Slate, Flint | Structures: gate, fortress, tower, bridge, vault, tomb, hold |
+| Nature: Storm, Thunder, Frost, Fire, Shadow, Mist, Dawn | Tools/Weapons: hammer, pick, axe, dagger, sword, anvil, forge |
+| Concepts: Doom, Death, Fate, Glory, Honor, Wrath, Grudge | Verbs: murdered, fallen, cursed, broken, lost, sunken, sealed |
+| Actions: Stake, Strike, Siege, Crush, Forge, Smelt, Delve | Body: fist, tooth, beard, blood, bone, skull, heart |
+
+Examples: "Irondeep", "Boatmurdered", "Stakeddaggers", "Doomgate", "Frostbeard", "Thundervault", "Grudgehammer", "Obsidianhold", "Stormfallen", "Bronzepick"
 
 Then announce dramatically and **STOP**:
 
