@@ -19,7 +19,7 @@ curl -fsSL https://bun.sh/install | bash && sudo apt install tmux
 **Add the plugin** (in Claude Code):
 ```
 /plugin marketplace add brimtown/claude-fortress
-/plugin install claude-fortress@claude-fortress
+/plugin install claude-fortress
 ```
 
 ## Play
@@ -27,7 +27,7 @@ curl -fsSL https://bun.sh/install | bash && sudo apt install tmux
 Start tmux, launch Claude Code, then:
 
 ```
-/claude-fortress:new
+/claude-fortress:embark
 ```
 
 Or just say **"Strike the earth!"**
@@ -41,8 +41,8 @@ Claude spawns a fortress and you command it naturally:
 
 | Command | Description |
 |---------|-------------|
-| `/claude-fortress:new` | Embark on a new fortress |
-| `/claude-fortress:new Irondeep` | Embark with a custom name |
+| `/claude-fortress:embark` | Embark on a new fortress |
+| `/claude-fortress:embark Irondeep` | Embark with a custom name |
 
 Or trigger naturally with: "strike the earth", "fortress", "embark", "let's play dwarves"
 
