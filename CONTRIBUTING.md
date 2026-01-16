@@ -147,13 +147,25 @@ rm -f /tmp/canvas-*.sock /tmp/canvas-spawn-*.sh /tmp/claude-canvas-pane-id
 
 ## Releasing
 
-Run the release script to bump versions consistently:
+**Always use the release workflow** to keep versions in sync across all files.
 
-```bash
-bun run scripts/release.ts [patch|minor|major]
+From this repo, just say:
+```
+release patch   # bug fixes: 0.3.0 → 0.3.1
+release minor   # new features: 0.3.0 → 0.4.0
+release major   # breaking changes: 0.3.0 → 1.0.0
 ```
 
-This updates versions in:
-- `.claude-plugin/marketplace.json`
-- `canvas/.claude-plugin/plugin.json`
-- `canvas/src/mcp-server.ts`
+This will:
+1. Bump versions in marketplace.json, plugin.json, and mcp-server.ts
+2. Stage and commit the changes
+3. Create a git tag
+4. Prompt you to push
+
+Or run manually:
+```bash
+bun run scripts/release.ts [patch|minor|major]
+git add -A && git commit -m "chore: release vX.Y.Z"
+git tag vX.Y.Z
+git push && git push --tags
+```

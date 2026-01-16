@@ -1,32 +1,51 @@
 ---
 name: release
-description: Bump version and prepare release
+description: Bump version, commit, and tag a release
 ---
 
 # Release Workflow
 
-Run the release script to bump versions across all plugin files.
-
-## When to Use
-
 Trigger on: "release", "bump version", "prepare release", "new version"
 
-## Process
+## Instructions
 
-1. Ask user for version bump type if not specified
-2. Run the release script
-3. Show the git commands to complete the release
+When triggered, **execute all steps** (don't just show commands):
 
-```bash
-bun run scripts/release.ts [patch|minor|major]
-```
+1. **Determine version bump type** from user input or ask:
+   - `patch` (0.3.0 → 0.3.1) - bug fixes
+   - `minor` (0.3.0 → 0.4.0) - new features
+   - `major` (0.3.0 → 1.0.0) - breaking changes
 
-## After Running
+2. **Run the release script**:
+   ```bash
+   bun run scripts/release.ts <type>
+   ```
 
-Remind user to:
-```bash
-git add -A
-git commit -m "chore: release vX.Y.Z"
-git tag vX.Y.Z
-git push && git push --tags
-```
+3. **Stage all changes**:
+   ```bash
+   git add -A
+   ```
+
+4. **Commit with version in message**:
+   ```bash
+   git commit -m "chore: release v<NEW_VERSION>"
+   ```
+
+5. **Create git tag**:
+   ```bash
+   git tag v<NEW_VERSION>
+   ```
+
+6. **Tell user to push**:
+   ```
+   Ready to publish! Run: git push && git push --tags
+   ```
+
+## Example
+
+User: "release patch"
+→ Run script with patch
+→ git add -A
+→ git commit -m "chore: release v0.3.1"
+→ git tag v0.3.1
+→ Tell user to push
