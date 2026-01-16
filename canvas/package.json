@@ -12,6 +12,7 @@
     "spawn": "bun run src/cli.ts spawn"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "@napi-rs/canvas": "^0.1.61",
     "commander": "^14.0.2",
     "ink": "^6.6.0",
