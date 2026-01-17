@@ -1,6 +1,6 @@
 {
   "name": "claude-fortress",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Strike the earth! A Dwarf Fortress-inspired ASCII simulation where Claude acts as your fortress overseer.",
   "author": {
     "name": "Tim Brown",

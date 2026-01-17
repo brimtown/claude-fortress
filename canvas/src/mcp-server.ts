@@ -111,7 +111,7 @@ async function fortressExists(instance: string): Promise<boolean> {
 const server = new Server(
   {
     name: "cli",
-    version: "0.3.1",
+    version: "0.3.2",
   },
   {
     capabilities: {
