@@ -106,9 +106,29 @@ export function formatSummaryAsMarkdown(
   lines.push(`| ${padNum(summary.resources.wood, 4)} | ${padNum(summary.resources.stone, 5)} | ${padNum(summary.resources.food, 4)} | ${padNum(summary.resources.drink, 5)} |`);
   lines.push("");
 
-  // Population
+  // Population & Jobs
   lines.push("## Population");
-  lines.push(`Total: ${summary.dwarfCount} | Alive: ${summary.aliveCount} | Jobs: ${summary.activeJobs}`);
+  lines.push(`Total: ${summary.dwarfCount} | Alive: ${summary.aliveCount}`);
+  lines.push("");
+
+  // Job queue breakdown
+  lines.push("## Jobs");
+  const j = summary.jobs;
+  const jobParts: string[] = [];
+  if (j.byType.dig > 0) {
+    const digInfo = j.inaccessible > 0
+      ? `Dig: ${j.byType.dig} (${j.inaccessible} waiting for access)`
+      : `Dig: ${j.byType.dig}`;
+    jobParts.push(digInfo);
+  }
+  if (j.byType.build > 0) jobParts.push(`Build: ${j.byType.build}`);
+  if (j.byType.produce > 0) jobParts.push(`Produce: ${j.byType.produce}`);
+
+  if (jobParts.length > 0) {
+    lines.push(jobParts.join(" | "));
+  } else {
+    lines.push("No pending jobs");
+  }
   lines.push("");
 
   // Crises

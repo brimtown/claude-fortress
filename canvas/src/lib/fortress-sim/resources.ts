@@ -6,7 +6,7 @@ import type { Resources } from "../../scenarios/fortress/types";
 export function createStartingResources(): Resources {
   return {
     wood: 20,
-    stone: 10,
+    stone: 20,
     food: 100,
     drink: 20,
   };
@@ -22,6 +22,32 @@ export function hasResources(current: Resources, cost: Resources): boolean {
     current.food >= cost.food &&
     current.drink >= cost.drink
   );
+}
+
+/**
+ * Get a human-readable string describing resource deficits
+ * Returns null if no deficit exists
+ */
+export function getResourceDeficit(
+  current: Resources,
+  cost: Resources
+): string | null {
+  const deficits: string[] = [];
+
+  if (cost.wood > current.wood) {
+    deficits.push(`${cost.wood - current.wood} more wood`);
+  }
+  if (cost.stone > current.stone) {
+    deficits.push(`${cost.stone - current.stone} more stone`);
+  }
+  if (cost.food > current.food) {
+    deficits.push(`${cost.food - current.food} more food`);
+  }
+  if (cost.drink > current.drink) {
+    deficits.push(`${cost.drink - current.drink} more drink`);
+  }
+
+  return deficits.length > 0 ? `Need ${deficits.join(", ")}` : null;
 }
 
 /**

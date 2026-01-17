@@ -12,6 +12,7 @@ import { getAverageHappiness, getDwarfMood, getLivingDwarfCount } from "../lib/f
 import { saveFortress, loadFortress } from "../lib/fortress-sim/save";
 import { restoreEventIdCounter } from "../lib/fortress-sim/events";
 import { buildInspectResult } from "../lib/fortress-sim/inspect";
+import { isJobAccessible } from "../lib/fortress-sim/jobs";
 import { formatSummaryAsMarkdown } from "../lib/markdown-formatter";
 import { renderScreenshot } from "../lib/screenshot";
 import { createIPCServer } from "../ipc/server";
@@ -131,20 +132,39 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                 const deadDwarves = currentState.dwarves.filter(d => !d.alive);
 
                 // Build dwarf status array with position
-                const dwarfStatus = currentState.dwarves.map(d => ({
-                  id: d.id,
-                  name: d.name,
-                  position: { x: d.x, y: d.y },
-                  labor: d.labor,
-                  hunger: d.hunger,
-                  thirst: d.thirst,
-                  happiness: d.happiness,
-                  alive: d.alive,
-                  currentTask: d.currentTask,
-                  moodState: d.moodState,
-                  moodDemands: d.moodDemands,
-                  isLegendary: d.isLegendary,
-                }));
+                // Check for "waiting" state - idle dwarf with matching jobs but none accessible
+                const dwarfStatus = currentState.dwarves.map(d => {
+                  let task = d.currentTask;
+
+                  // If dwarf is idle and alive, check if they're waiting for accessible jobs
+                  if (!task && d.alive) {
+                    const matchingJobs = currentState.jobs.filter(j => j.requiredLabor === d.labor && !j.assignedDwarfId);
+                    if (matchingJobs.length > 0) {
+                      const hasAccessible = matchingJobs.some(j => {
+                        if (j.type !== "dig") return true; // Non-dig jobs are always accessible
+                        return isJobAccessible(currentState, j.x, j.y);
+                      });
+                      if (!hasAccessible) {
+                        task = "waiting (no path)";
+                      }
+                    }
+                  }
+
+                  return {
+                    id: d.id,
+                    name: d.name,
+                    position: { x: d.x, y: d.y },
+                    labor: d.labor,
+                    hunger: d.hunger,
+                    thirst: d.thirst,
+                    happiness: d.happiness,
+                    alive: d.alive,
+                    currentTask: task,
+                    moodState: d.moodState,
+                    moodDemands: d.moodDemands,
+                    isLegendary: d.isLegendary,
+                  };
+                });
 
                 // Build crisis alerts
                 const crises = {
@@ -162,6 +182,19 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   producing: b.autoQueue ? (b.subtype || b.type) : undefined,
                 }));
 
+                // Compute job breakdown
+                const jobBreakdown = {
+                  total: currentState.jobs.length,
+                  byType: {
+                    dig: currentState.jobs.filter(j => j.type === "dig").length,
+                    build: currentState.jobs.filter(j => j.type === "build").length,
+                    produce: currentState.jobs.filter(j => j.type === "produce").length,
+                  },
+                  inaccessible: currentState.jobs.filter(
+                    j => j.type === "dig" && !isJobAccessible(currentState, j.x, j.y)
+                  ).length,
+                };
+
                 const summary: FortressSummary = {
                   tick: currentState.tick,
                   year: currentState.year,
@@ -171,6 +204,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   dwarfCount: currentState.dwarves.length,
                   aliveCount: livingDwarves.length,
                   activeJobs: currentState.jobs.length,
+                  jobs: jobBreakdown,
                   recentEvents: currentState.events.slice(-5),
                   dwarves: dwarfStatus,
                   buildings: buildingInfo,

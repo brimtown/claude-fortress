@@ -15,6 +15,7 @@ import {
   consumeResources,
   addResources,
   getBuildingCost,
+  getResourceDeficit,
 } from "./resources";
 import { createEvent, trimEvents, EventMessages } from "./events";
 import { updateAllDwarfMovement } from "./movement";
@@ -328,6 +329,9 @@ export function handleCommand(state: FortressState, command: FortressCommand): b
       state.events.push(createEvent(state.tick, "Fortress saved", "success"));
       return true;
 
+    case "cancel":
+      return handleCancelCommand(state, command.area);
+
     default:
       return false;
   }
@@ -414,6 +418,47 @@ function handleDigCommand(
 }
 
 /**
+ * Handle cancel command - remove dig designations from an area
+ */
+function handleCancelCommand(
+  state: FortressState,
+  area: { x: number; y: number; width: number; height: number }
+): boolean {
+  let jobsCancelled = 0;
+
+  for (let dy = 0; dy < area.height; dy++) {
+    for (let dx = 0; dx < area.width; dx++) {
+      const x = area.x + dx;
+      const y = area.y + dy;
+
+      if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) continue;
+
+      // Find and remove unassigned dig jobs at this location
+      const jobIndex = state.jobs.findIndex(
+        (j) => j.type === "dig" && j.x === x && j.y === y && !j.assignedDwarfId
+      );
+
+      if (jobIndex !== -1) {
+        state.jobs.splice(jobIndex, 1);
+        jobsCancelled++;
+      }
+    }
+  }
+
+  if (jobsCancelled > 0) {
+    state.events.push(
+      createEvent(state.tick, `Cancelled ${jobsCancelled} dig designation${jobsCancelled > 1 ? "s" : ""}`, "info")
+    );
+    return true;
+  } else {
+    state.events.push(
+      createEvent(state.tick, "No unassigned dig designations in that area", "warning")
+    );
+    return false;
+  }
+}
+
+/**
  * Handle build command - construct a building
  */
 function handleBuildCommand(
@@ -422,20 +467,23 @@ function handleBuildCommand(
   location: { x: number; y: number },
   subtype?: string
 ): boolean {
-  // Check if location is valid (must be on floor)
+  // Check if location is valid (bounds check)
   if (
     location.x < 0 ||
     location.x >= MAP_WIDTH ||
     location.y < 0 ||
     location.y >= MAP_HEIGHT
   ) {
+    state.events.push(
+      createEvent(state.tick, `Cannot build at (${location.x}, ${location.y}) - coordinates out of bounds`, "warning")
+    );
     return false;
   }
 
   const tile = state.map[location.y][location.x];
   if (tile.type !== "floor") {
     state.events.push(
-      createEvent(state.tick, "Cannot build here - must be on dug floor", "warning")
+      createEvent(state.tick, `Cannot build at (${location.x}, ${location.y}) - must be on dug floor`, "warning")
     );
     return false;
   }
@@ -444,8 +492,9 @@ function handleBuildCommand(
   if (structure !== "farm") {
     const cost = getBuildingCost(structure, subtype);
     if (!consumeResources(state.resources, cost)) {
+      const deficit = getResourceDeficit(state.resources, cost);
       state.events.push(
-        createEvent(state.tick, "Insufficient resources for construction", "warning")
+        createEvent(state.tick, `Insufficient resources: ${deficit}`, "warning")
       );
       return false;
     }
@@ -478,6 +527,8 @@ function handleBuildCommand(
 /**
  * Handle assign command - change dwarf's labor
  */
+const VALID_LABORS: Labor[] = ["mining", "carpentry", "brewing", "farming", "hauling"];
+
 function handleAssignCommand(
   state: FortressState,
   dwarfId: number,
@@ -486,10 +537,27 @@ function handleAssignCommand(
   const dwarf = state.dwarves.find((d) => d.id === dwarfId);
 
   if (!dwarf) {
+    state.events.push(
+      createEvent(state.tick, `Dwarf #${dwarfId} does not exist`, "warning")
+    );
     return false;
   }
 
-  dwarf.labor = labor as any;
+  if (!dwarf.alive) {
+    state.events.push(
+      createEvent(state.tick, `${dwarf.name} is dead and cannot be assigned`, "warning")
+    );
+    return false;
+  }
+
+  if (!VALID_LABORS.includes(labor as Labor)) {
+    state.events.push(
+      createEvent(state.tick, `Invalid labor "${labor}". Valid options: ${VALID_LABORS.join(", ")}`, "warning")
+    );
+    return false;
+  }
+
+  dwarf.labor = labor as Labor;
   state.events.push(
     createEvent(state.tick, `${dwarf.name} assigned to ${labor}`, "info")
   );

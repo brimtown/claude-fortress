@@ -66,7 +66,7 @@ export function createProductionJob(
  * Check if a tile is accessible (adjacent to a floor tile)
  * This ensures dwarves can only work on tiles they can reach
  */
-function isJobAccessible(state: FortressState, x: number, y: number): boolean {
+export function isJobAccessible(state: FortressState, x: number, y: number): boolean {
   const directions = [
     [-1, 0], [1, 0], [0, -1], [0, 1],  // cardinal
     [-1, -1], [1, -1], [-1, 1], [1, 1]  // diagonal

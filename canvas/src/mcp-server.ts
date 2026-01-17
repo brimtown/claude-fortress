@@ -199,7 +199,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "build",
         description:
-          "Place a building or structure. Requires dug-out floor tiles.",
+          "Place a building or structure. IMPORTANT: You must dig out floor tiles first, then build on them. Buildings cannot be placed on walls or undug terrain.",
         inputSchema: {
           type: "object" as const,
           properties: {
@@ -301,6 +301,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               default: "fortress-1",
             },
           },
+        },
+      },
+      {
+        name: "cancel",
+        description:
+          "Cancel dig designations in an area. Removes pending dig jobs that haven't been started yet.",
+        inputSchema: {
+          type: "object" as const,
+          properties: {
+            instance: {
+              type: "string",
+              description: 'Fortress instance ID (returned by embark, default: "fortress-1")',
+              default: "fortress-1",
+            },
+            x: {
+              type: "number",
+              description: "Starting X coordinate (0-39)",
+            },
+            y: {
+              type: "number",
+              description: "Starting Y coordinate (0-19)",
+            },
+            width: {
+              type: "number",
+              description: "Width of area to cancel",
+            },
+            height: {
+              type: "number",
+              description: "Height of area to cancel",
+            },
+          },
+          required: ["x", "y", "width", "height"],
         },
       },
     ],
@@ -488,6 +520,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const width = args?.width as number;
         const height = args?.height as number;
 
+        // Validate inputs
+        const errors: string[] = [];
+        if (typeof x !== "number" || x < 0 || x >= 40) {
+          errors.push(`x must be 0-39 (got ${x})`);
+        }
+        if (typeof y !== "number" || y < 0 || y >= 20) {
+          errors.push(`y must be 0-19 (got ${y})`);
+        }
+        if (typeof width !== "number" || width < 1) {
+          errors.push(`width must be at least 1 (got ${width})`);
+        }
+        if (typeof height !== "number" || height < 1) {
+          errors.push(`height must be at least 1 (got ${height})`);
+        }
+        if (errors.length > 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Invalid dig parameters: ${errors.join(", ")}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
         await sendCommand(socketPath, {
           type: "dig",
           area: { x, y, width, height },
@@ -529,6 +587,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const y = args?.y as number;
         const subtype = args?.subtype as string | undefined;
 
+        // Validate inputs
+        const errors: string[] = [];
+        if (typeof x !== "number" || x < 0 || x >= 40) {
+          errors.push(`x must be 0-39 (got ${x})`);
+        }
+        if (typeof y !== "number" || y < 0 || y >= 20) {
+          errors.push(`y must be 0-19 (got ${y})`);
+        }
+        const validStructures = ["workshop", "stockpile", "bed", "farm"];
+        if (!validStructures.includes(structure)) {
+          errors.push(`structure must be one of: ${validStructures.join(", ")}`);
+        }
+        if (errors.length > 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Invalid build parameters: ${errors.join(", ")}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
         await sendCommand(socketPath, {
           type: "build",
           structure,
@@ -565,6 +647,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const dwarfId = args?.dwarf_id as number;
         const labor = args?.labor as Labor;
+
+        // Validate inputs
+        const errors: string[] = [];
+        if (typeof dwarfId !== "number" || dwarfId < 0) {
+          errors.push(`dwarf_id must be a non-negative number (got ${dwarfId})`);
+        }
+        const validLabors: Labor[] = ["mining", "carpentry", "brewing", "farming", "hauling"];
+        if (!validLabors.includes(labor)) {
+          errors.push(`labor must be one of: ${validLabors.join(", ")}`);
+        }
+        if (errors.length > 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Invalid assign parameters: ${errors.join(", ")}`,
+              },
+            ],
+            isError: true,
+          };
+        }
 
         await sendCommand(socketPath, {
           type: "assign",
@@ -703,6 +806,69 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
           isError: true,
+        };
+      }
+
+      case "cancel": {
+        const instance = (args?.instance as string) || "fortress-1";
+        const socketPath = getSocketPath(instance);
+
+        if (!(await fortressExists(instance))) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `No fortress found at instance "${instance}". Use 'embark' first.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const x = args?.x as number;
+        const y = args?.y as number;
+        const width = args?.width as number;
+        const height = args?.height as number;
+
+        // Validate inputs
+        const errors: string[] = [];
+        if (typeof x !== "number" || x < 0 || x >= 40) {
+          errors.push(`x must be 0-39 (got ${x})`);
+        }
+        if (typeof y !== "number" || y < 0 || y >= 20) {
+          errors.push(`y must be 0-19 (got ${y})`);
+        }
+        if (typeof width !== "number" || width < 1) {
+          errors.push(`width must be at least 1 (got ${width})`);
+        }
+        if (typeof height !== "number" || height < 1) {
+          errors.push(`height must be at least 1 (got ${height})`);
+        }
+        if (errors.length > 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Invalid cancel parameters: ${errors.join(", ")}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        await sendCommand(socketPath, {
+          type: "cancel",
+          area: { x, y, width, height },
+        });
+
+        const tiles = width * height;
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Cancelled dig designations in ${tiles} tile area at (${x}, ${y}).`,
+            },
+          ],
         };
       }
 

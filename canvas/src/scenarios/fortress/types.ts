@@ -165,6 +165,12 @@ export interface CrisisAlerts {
 }
 
 // Lightweight summary for token-efficient polling (excludes map, minimizes dwarves)
+export interface JobBreakdown {
+  total: number;
+  byType: { dig: number; build: number; produce: number };
+  inaccessible: number;  // Dig jobs that can't be worked yet (no adjacent floor)
+}
+
 export interface FortressSummary {
   tick: number;
   year: number;
@@ -174,6 +180,7 @@ export interface FortressSummary {
   dwarfCount: number;
   aliveCount: number;
   activeJobs: number;
+  jobs: JobBreakdown;  // Detailed job queue info
   recentEvents: GameEvent[];  // Last 3-5 events only
 
   // Enhanced visibility for Claude
@@ -189,7 +196,8 @@ export type FortressCommand =
   | { type: "build"; structure: "workshop" | "stockpile" | "bed" | "farm"; subtype?: string; location: { x: number; y: number } }
   | { type: "assign"; dwarfId: number; labor: Labor }
   | { type: "pause"; paused: boolean }
-  | { type: "save" };
+  | { type: "save" }
+  | { type: "cancel"; area: { x: number; y: number; width: number; height: number } };
 
 // Tile info for inspect results
 export interface TileInfo {
