@@ -190,7 +190,7 @@ export function processTick(state: FortressState): void {
     } else if (recentDeaths >= 2) {
       // Dangerous reputation blocks migrants
       state.events.push(
-        createEvent(state.tick, EventMessages.migrationBlocked(), "warning")
+        createEvent(state.tick, EventMessages.migrationBlocked(recentDeaths), "warning")
       );
     } else {
       // Wealth tiers determine migrant count

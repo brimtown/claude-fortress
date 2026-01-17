@@ -154,6 +154,14 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   recentDeaths: deadDwarves.slice(-5).map(d => d.name),
                 };
 
+                // Build buildings list
+                const buildingInfo = currentState.buildings.map(b => ({
+                  x: b.x,
+                  y: b.y,
+                  type: b.type as "workshop" | "stockpile" | "farm" | "still" | "bed",
+                  producing: b.autoQueue ? (b.subtype || b.type) : undefined,
+                }));
+
                 const summary: FortressSummary = {
                   tick: currentState.tick,
                   year: currentState.year,
@@ -165,6 +173,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   activeJobs: currentState.jobs.length,
                   recentEvents: currentState.events.slice(-5),
                   dwarves: dwarfStatus,
+                  buildings: buildingInfo,
                   crises,
                   statistics: currentState.statistics,
                 };

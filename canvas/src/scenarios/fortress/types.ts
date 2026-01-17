@@ -178,6 +178,7 @@ export interface FortressSummary {
 
   // Enhanced visibility for Claude
   dwarves: DwarfStatus[];
+  buildings: BuildingInfo[];  // What structures exist
   crises: CrisisAlerts;
   statistics: FortressStatistics;
 }

@@ -266,7 +266,13 @@ export function updateJobs(state: FortressState): void {
       const job = findJobForDwarf(state, dwarf);
       if (job) {
         assignJob(dwarf, job);
-        dwarf.currentTask = `${job.type}ing`;
+        // Properly conjugate job type to -ing form
+        const taskNames: Record<string, string> = {
+          dig: "digging",
+          build: "building",
+          produce: "producing",
+        };
+        dwarf.currentTask = taskNames[job.type] || `${job.type}ing`;
       }
     }
 

@@ -1,7 +1,7 @@
 // Markdown formatter for FortressSummary
 // Provides token-efficient output for Claude observation
 
-import type { FortressSummary, DwarfStatus, GameEvent } from "../scenarios/fortress/types";
+import type { FortressSummary, DwarfStatus, GameEvent, BuildingInfo } from "../scenarios/fortress/types";
 
 // Event type symbols
 const EVENT_SYMBOLS: Record<string, string> = {
@@ -118,13 +118,38 @@ export function formatSummaryAsMarkdown(
   lines.push(`- **In Mood**: ${formatCrisisList(summary.crises.inMood)}`);
   lines.push("");
 
-  // Dwarves table
-  if (summary.dwarves.length > 0) {
+  // Split dwarves into living and dead
+  const livingDwarves = summary.dwarves.filter(d => d.alive);
+  const deadDwarves = summary.dwarves.filter(d => !d.alive);
+
+  // Living dwarves table
+  if (livingDwarves.length > 0) {
     lines.push("## Dwarves");
     lines.push("| ID | Name     | Labor     | Pos   | Hunger | Thirst | Task       |");
     lines.push("|----|----------|-----------|-------|--------|--------|------------|");
-    for (const dwarf of summary.dwarves) {
+    for (const dwarf of livingDwarves) {
       lines.push(formatDwarfRow(dwarf));
+    }
+    lines.push("");
+  }
+
+  // Dead dwarves (compact list)
+  if (deadDwarves.length > 0) {
+    const deadNames = deadDwarves.map(d => d.name).join(", ");
+    lines.push(`**Deceased (${deadDwarves.length}):** ${deadNames}`);
+    lines.push("");
+  }
+
+  // Buildings table
+  if (summary.buildings && summary.buildings.length > 0) {
+    lines.push("## Buildings");
+    lines.push("| Type      | Pos   | Producing |");
+    lines.push("|-----------|-------|-----------|");
+    for (const b of summary.buildings) {
+      const type = pad(b.type, 9);
+      const pos = pad(`${b.x},${b.y}`, 5);
+      const prod = b.producing || "-";
+      lines.push(`| ${type} | ${pos} | ${prod} |`);
     }
     lines.push("");
   }

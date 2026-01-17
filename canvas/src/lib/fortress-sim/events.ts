@@ -142,7 +142,10 @@ export const EventMessages = {
   },
 
   // Migration events
-  migrationBlocked: () => {
+  migrationBlocked: (recentDeaths?: number) => {
+    if (recentDeaths) {
+      return `Migrants refused to journey here - ${recentDeaths} deaths this season have tarnished the fortress's reputation.`;
+    }
     return "Migrants refused to journey to such a dangerous fortress.";
   },
 

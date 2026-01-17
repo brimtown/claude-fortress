@@ -127,14 +127,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "embark",
         description:
-          "Start a new fortress. Spawns an ASCII fortress simulation in a tmux window.",
+          "Start a new fortress. Spawns an ASCII fortress simulation in a tmux window. Returns the instance ID to use with other commands.",
         inputSchema: {
           type: "object" as const,
           properties: {
             name: {
               type: "string",
               description:
-                'Fortress name (e.g., "Copperwhispers", "Boatmurdered")',
+                'Fortress name (optional - auto-generates names like "Ironforge", "Copperdeep" if not provided)',
+            },
+            instance: {
+              type: "string",
+              description:
+                'Instance ID for this fortress (default: auto-generated like "fortress-1", "fortress-2"). Use different IDs to run multiple fortresses in parallel.',
             },
             save: {
               type: "boolean",
@@ -142,7 +147,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               default: true,
             },
           },
-          required: ["name"],
         },
       },
       {
@@ -154,7 +158,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             instance: {
               type: "string",
-              description: 'Fortress instance ID - always use "fortress-1"',
+              description: 'Fortress instance ID (returned by embark, default: "fortress-1")',
               default: "fortress-1",
             },
           },
@@ -169,7 +173,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             instance: {
               type: "string",
-              description: 'Fortress instance ID - always use "fortress-1"',
+              description: 'Fortress instance ID (returned by embark, default: "fortress-1")',
               default: "fortress-1",
             },
             x: {
@@ -201,7 +205,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             instance: {
               type: "string",
-              description: 'Fortress instance ID - always use "fortress-1"',
+              description: 'Fortress instance ID (returned by embark, default: "fortress-1")',
               default: "fortress-1",
             },
             structure: {
@@ -235,7 +239,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             instance: {
               type: "string",
-              description: 'Fortress instance ID - always use "fortress-1"',
+              description: 'Fortress instance ID (returned by embark, default: "fortress-1")',
               default: "fortress-1",
             },
             dwarf_id: {
@@ -259,7 +263,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             instance: {
               type: "string",
-              description: 'Fortress instance ID - always use "fortress-1"',
+              description: 'Fortress instance ID (returned by embark, default: "fortress-1")',
               default: "fortress-1",
             },
             paused: {
@@ -278,7 +282,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             instance: {
               type: "string",
-              description: 'Fortress instance ID - always use "fortress-1"',
+              description: 'Fortress instance ID (returned by embark, default: "fortress-1")',
+              default: "fortress-1",
+            },
+          },
+        },
+      },
+      {
+        name: "screenshot",
+        description:
+          "Capture a visual screenshot of the fortress map. Returns a PNG image showing the full map with dwarves, buildings, dig designations, resources, and a legend. Use this to see the spatial layout of your fortress.",
+        inputSchema: {
+          type: "object" as const,
+          properties: {
+            instance: {
+              type: "string",
+              description: 'Fortress instance ID (returned by embark, default: "fortress-1")',
               default: "fortress-1",
             },
           },
@@ -295,20 +314,52 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case "embark": {
-        const fortressName = (args?.name as string) || "Unnamed";
+        let fortressName = args?.name as string | undefined;
         const save = args?.save !== false;
+        const fs = await import("fs/promises");
 
-        // Check for existing save to prevent overwrites
+        // Auto-generate fortress name if not provided
+        if (!fortressName) {
+          const prefixes = ["Copper", "Iron", "Gold", "Silver", "Bronze", "Steel", "Mithril", "Amber", "Jade", "Onyx"];
+          const suffixes = ["gleam", "peak", "halls", "forge", "deep", "hold", "spire", "gate", "haven", "ward"];
+          const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+          const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+          fortressName = `${prefix}${suffix}`;
+        }
+
+        // Check for existing save - add random suffix if collision
         if (save && hasSave(fortressName)) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `A fortress named "${fortressName}" already exists. Choose a different name to avoid overwriting the save.`,
-              },
-            ],
-            isError: true,
-          };
+          const suffix = Math.random().toString(36).substring(2, 6);
+          fortressName = `${fortressName}-${suffix}`;
+        }
+
+        // Generate or use provided instance ID
+        let instance = args?.instance as string | undefined;
+        if (!instance) {
+          // Auto-generate: find first available fortress-N
+          for (let i = 1; i <= 10; i++) {
+            const candidateId = `fortress-${i}`;
+            const candidatePath = getSocketPath(candidateId);
+            try {
+              const stat = await fs.stat(candidatePath);
+              if (stat.isSocket()) continue; // Already in use
+            } catch {
+              // Socket doesn't exist, this ID is available
+              instance = candidateId;
+              break;
+            }
+          }
+          if (!instance) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Too many fortresses running (max 10). Close some first.",
+                },
+              ],
+              isError: true,
+            };
+          }
         }
 
         const config = JSON.stringify({ fortressName, save });
@@ -335,13 +386,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        const result = await spawnCanvas("fortress", "fortress-1", config, {
+        const result = await spawnCanvas("fortress", instance, config, {
           scenario: "fortress",
         });
 
         // Wait for socket to appear (fortress needs a moment to initialize)
-        const socketPath = getSocketPath("fortress-1");
-        const fs = await import("fs/promises");
+        const socketPath = getSocketPath(instance);
         let attempts = 0;
         while (attempts < 30) {
           try {
@@ -370,7 +420,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: "text" as const,
-              text: `The wagon has arrived at ${fortressName.toUpperCase()}. Seven dwarves await your command.`,
+              text: `The wagon has arrived at ${fortressName.toUpperCase()}. Seven dwarves await your command.\n\nInstance ID: ${instance}\nUse this ID with query, dig, build, assign, pause, save, and screenshot commands.`,
             },
           ],
         };
@@ -590,6 +640,69 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: "Fortress saved.",
             },
           ],
+        };
+      }
+
+      case "screenshot": {
+        const instance = (args?.instance as string) || "fortress-1";
+        const socketPath = getSocketPath(instance);
+
+        if (!(await fortressExists(instance))) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `No fortress found at instance "${instance}". Use 'embark' first.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        // Request screenshot from fortress (longer timeout for rendering)
+        const response = (await sendIPC(
+          socketPath,
+          { type: "screenshot" },
+          10000
+        )) as { type: string; path?: string; message?: string };
+
+        if (response.type === "error") {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Screenshot failed: ${response.message}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (response.type === "screenshot" && response.path) {
+          // Read the PNG file and return as base64 image
+          const fs = await import("fs/promises");
+          const imageData = await fs.readFile(response.path);
+          const base64 = imageData.toString("base64");
+
+          return {
+            content: [
+              {
+                type: "image" as const,
+                data: base64,
+                mimeType: "image/png",
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Unexpected response: ${JSON.stringify(response)}`,
+            },
+          ],
+          isError: true,
         };
       }
 
