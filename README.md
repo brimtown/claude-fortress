@@ -63,6 +63,19 @@ In Claude Code:
 /plugin install claude-fortress
 ```
 
+### Update the Plugin
+
+```
+/plugin update claude-fortress@brimtown/claude-fortress
+```
+
+### Enable Auto-Updates
+
+1. Run `/plugin` to open the plugin manager
+2. Select the **Marketplaces** tab
+3. Choose **brimtown/claude-fortress**
+4. Select **Enable auto-update**
+
 ## Play
 
 Start tmux (macOS/Linux/WSL) or use Windows Terminal, launch Claude Code, then:
