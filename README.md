@@ -6,7 +6,16 @@
 
 ## Install
 
-**Prerequisites:** [Bun](https://bun.sh), [Claude Code](https://claude.ai/code)
+**Easiest:** Paste this URL into Claude Code and ask it to install the plugin:
+```
+https://github.com/brimtown/claude-fortress
+```
+
+Claude will handle dependencies and setup for your platform.
+
+---
+
+**Manual install** (if you prefer):
 
 ### macOS / Linux
 
