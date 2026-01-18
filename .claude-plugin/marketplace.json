@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "claude-fortress",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "Dwarf Fortress simulation for Claude Code - command dwarves through natural language",
   "owner": {
     "name": "Tim Brown",
@@ -12,7 +12,7 @@
       "name": "claude-fortress",
       "source": "./canvas",
       "description": "Strike the earth! A Dwarf Fortress-inspired ASCII simulation where Claude acts as your fortress overseer.",
-      "version": "0.3.3",
+      "version": "0.4.0",
       "category": "game",
       "author": {
         "name": "Tim Brown",
