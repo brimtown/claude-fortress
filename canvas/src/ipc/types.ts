@@ -42,7 +42,5 @@ export type CanvasMessage =
   | ScreenshotResponse
   | { type: "inspect"; data: unknown }; // InspectResult
 
-// Socket path convention
-export function getSocketPath(id: string): string {
-  return `/tmp/canvas-${id}.sock`;
-}
+// Socket path convention - re-export from platform utilities
+export { getSocketPath } from "../platform";

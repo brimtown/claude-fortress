@@ -13,8 +13,49 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { spawnCanvas } from "./terminal";
 import { getSocketPath } from "./ipc/types";
+import { detectPlatform } from "./platform";
 import type { FortressCommand, Labor } from "./scenarios/fortress/types";
 import { hasSave } from "./lib/fortress-sim/save";
+
+// Check if a socket/pipe is ready (cross-platform)
+async function isSocketReady(socketPath: string): Promise<boolean> {
+  const platform = detectPlatform();
+
+  if (platform === "windows") {
+    // On Windows, named pipes can't be stat'd - try connecting instead
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(false), 100);
+      Bun.connect({
+        unix: socketPath,
+        socket: {
+          open(socket) {
+            clearTimeout(timeout);
+            socket.end();
+            resolve(true);
+          },
+          error() {
+            clearTimeout(timeout);
+            resolve(false);
+          },
+          data() {},
+          close() {},
+        },
+      }).catch(() => {
+        clearTimeout(timeout);
+        resolve(false);
+      });
+    });
+  }
+
+  // Unix/WSL - use fs.stat
+  try {
+    const fs = await import("fs/promises");
+    const stat = await fs.stat(socketPath);
+    return stat.isSocket();
+  } catch {
+    return false;
+  }
+}
 
 // Helper to send IPC message and get response
 async function sendIPC(
@@ -94,17 +135,10 @@ async function sendCommand(
   });
 }
 
-// Check if fortress instance exists by trying to connect to socket
+// Check if fortress instance exists by trying to connect to socket/pipe
 async function fortressExists(instance: string): Promise<boolean> {
   const socketPath = getSocketPath(instance);
-  try {
-    // Use fs.stat to check for socket file (Bun.file doesn't work for sockets)
-    const fs = await import("fs/promises");
-    const stat = await fs.stat(socketPath);
-    return stat.isSocket();
-  } catch {
-    return false;
-  }
+  return isSocketReady(socketPath);
 }
 
 // Create the MCP server
@@ -348,7 +382,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "embark": {
         let fortressName = args?.name as string | undefined;
         const save = args?.save !== false;
-        const fs = await import("fs/promises");
 
         // Auto-generate fortress name if not provided
         if (!fortressName) {
@@ -372,14 +405,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           for (let i = 1; i <= 10; i++) {
             const candidateId = `fortress-${i}`;
             const candidatePath = getSocketPath(candidateId);
-            try {
-              const stat = await fs.stat(candidatePath);
-              if (stat.isSocket()) continue; // Already in use
-            } catch {
-              // Socket doesn't exist, this ID is available
-              instance = candidateId;
-              break;
-            }
+            const inUse = await isSocketReady(candidatePath);
+            if (inUse) continue; // Already in use
+            instance = candidateId;
+            break;
           }
           if (!instance) {
             return {
@@ -418,41 +447,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        const result = await spawnCanvas("fortress", instance, config, {
+        const spawnResult = await spawnCanvas("fortress", instance, config, {
           scenario: "fortress",
         });
 
-        // Wait for socket to appear (fortress needs a moment to initialize)
+        // Wait for socket/pipe to be ready (fortress needs a moment to initialize)
         const socketPath = getSocketPath(instance);
         let attempts = 0;
         while (attempts < 30) {
-          try {
-            const stat = await fs.stat(socketPath);
-            if (stat.isSocket()) break;
-          } catch {
-            // Socket doesn't exist yet
-          }
+          const ready = await isSocketReady(socketPath);
+          if (ready) break;
           await new Promise((r) => setTimeout(r, 200));
           attempts++;
         }
 
         if (attempts >= 30) {
+          const platform = detectPlatform();
+          const paneHint = platform === "windows"
+            ? "Check the Windows Terminal pane for errors."
+            : "Check the tmux pane for errors.";
           return {
             content: [
               {
                 type: "text" as const,
-                text: `Fortress "${fortressName}" spawn initiated but socket not ready. Check tmux pane for errors. Socket path: ${socketPath}`,
+                text: `Fortress "${fortressName}" spawn initiated but socket not ready. ${paneHint} Socket path: ${socketPath}`,
               },
             ],
             isError: true,
           };
         }
 
+        // Build success message, including Windows warning if applicable
+        let successMsg = `The wagon has arrived at ${fortressName.toUpperCase()}. Seven dwarves await your command.\n\nInstance ID: ${instance}\nUse this ID with query, dig, build, assign, pause, save, and screenshot commands.`;
+        if (spawnResult.warning) {
+          successMsg += `\n\n${spawnResult.warning}`;
+        }
+
         return {
           content: [
             {
               type: "text" as const,
-              text: `The wagon has arrived at ${fortressName.toUpperCase()}. Seven dwarves await your command.\n\nInstance ID: ${instance}\nUse this ID with query, dig, build, assign, pause, save, and screenshot commands.`,
+              text: successMsg,
             },
           ],
         };
