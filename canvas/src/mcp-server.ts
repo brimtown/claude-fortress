@@ -141,11 +141,14 @@ async function fortressExists(instance: string): Promise<boolean> {
   return isSocketReady(socketPath);
 }
 
+// Plugin version - updated by scripts/release.ts
+const PLUGIN_VERSION = "0.3.3";
+
 // Create the MCP server
 const server = new Server(
   {
     name: "cli",
-    version: "0.3.3",
+    version: PLUGIN_VERSION,
   },
   {
     capabilities: {
@@ -477,8 +480,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        // Build success message, including Windows warning if applicable
-        let successMsg = `The wagon has arrived at ${fortressName.toUpperCase()}. Seven dwarves await your command.\n\nInstance ID: ${instance}\nUse this ID with query, dig, build, assign, pause, save, and screenshot commands.`;
+        // Build success message, including version, platform, and Windows warning if applicable
+        const platform = detectPlatform();
+        let successMsg = `Claude Fortress v${PLUGIN_VERSION} (${platform})\n\nThe wagon has arrived at ${fortressName.toUpperCase()}. Seven dwarves await your command.\n\nInstance ID: ${instance}\nUse this ID with query, dig, build, assign, pause, save, and screenshot commands.`;
         if (spawnResult.warning) {
           successMsg += `\n\n${spawnResult.warning}`;
         }

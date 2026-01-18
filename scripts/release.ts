@@ -71,10 +71,10 @@ async function updateMcpServer(newVersion: string): Promise<void> {
   const file = Bun.file(MCP_SERVER_TS);
   let content = await file.text();
 
-  // Replace version in Server constructor
+  // Replace PLUGIN_VERSION constant
   content = content.replace(
-    /name: "cli",\s*version: "[^"]+"/,
-    `name: "cli",\n    version: "${newVersion}"`
+    /const PLUGIN_VERSION = "[^"]+"/,
+    `const PLUGIN_VERSION = "${newVersion}"`
   );
 
   await Bun.write(MCP_SERVER_TS, content);
