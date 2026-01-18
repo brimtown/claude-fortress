@@ -5,6 +5,7 @@ import { createCanvas } from "@napi-rs/canvas";
 import type { FortressState, Dwarf } from "../scenarios/fortress/types";
 import { getTileChar } from "./fortress-sim/map";
 import type { Viewport } from "../ipc/types";
+import { getScreenshotPath } from "../platform";
 
 // Terminal color names to RGB hex
 const TERMINAL_COLORS: Record<string, string> = {
@@ -391,7 +392,7 @@ export async function renderScreenshot(
 
   // Save to file
   const pngBuffer = await canvas.encode("png");
-  const outputPath = `/tmp/fortress-${options.fortressId}-screenshot.png`;
+  const outputPath = getScreenshotPath(options.fortressId);
   await Bun.write(outputPath, pngBuffer);
 
   return {
