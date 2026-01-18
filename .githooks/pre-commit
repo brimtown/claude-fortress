@@ -1,0 +1,7 @@
+#!/bin/sh
+echo "Running pre-commit checks..."
+
+bun run typecheck || { echo "Typecheck failed."; exit 1; }
+bun test || { echo "Tests failed."; exit 1; }
+
+echo "Pre-commit checks passed!"

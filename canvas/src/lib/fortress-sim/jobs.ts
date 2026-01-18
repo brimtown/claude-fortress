@@ -1,4 +1,4 @@
-import type { Job, Dwarf, FortressState, Labor } from "../../scenarios/fortress/types";
+import type { Job, Dwarf, FortressState, Labor, Building } from "../../scenarios/fortress/types";
 import { createEvent } from "./events";
 import { MAP_WIDTH, MAP_HEIGHT } from "./map";
 
@@ -72,7 +72,8 @@ export function isJobAccessible(state: FortressState, x: number, y: number): boo
     [-1, -1], [1, -1], [-1, 1], [1, 1]  // diagonal
   ];
 
-  for (const [dx, dy] of directions) {
+  for (const dir of directions) {
+    const [dx, dy] = dir as [number, number];
     const nx = x + dx;
     const ny = y + dy;
     if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
@@ -193,7 +194,7 @@ function completeJob(state: FortressState, job: Job): void {
       state.buildings.push({
         id: state.buildings.length,
         type: job.buildingType,
-        subtype: job.buildingSubtype,
+        subtype: job.buildingSubtype as Building["subtype"],
         x: job.x,
         y: job.y,
         width: job.buildingType === "workshop" ? 3 : 1,

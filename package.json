@@ -7,7 +7,11 @@
   "scripts": {
     "start": "bun run canvas/src/cli.ts",
     "show": "bun run canvas/src/cli.ts show",
-    "spawn": "bun run canvas/src/cli.ts spawn"
+    "spawn": "bun run canvas/src/cli.ts spawn",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test ./canvas/src/",
+    "check": "bun run typecheck && bun run test",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "@types/bun": "latest",

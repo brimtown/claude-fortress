@@ -98,6 +98,7 @@ export interface Building {
 
   // Production tracking
   activeJobId?: number;         // Current production job
+  autoQueue?: boolean;          // Auto-queue production jobs
 }
 
 export interface GameEvent {

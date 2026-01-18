@@ -241,7 +241,7 @@ export function processTick(state: FortressState): void {
     const seasons: Season[] = ["Spring", "Summer", "Autumn", "Winter"];
     const currentIndex = seasons.indexOf(state.season);
     const nextIndex = (currentIndex + 1) % seasons.length;
-    state.season = seasons[nextIndex];
+    state.season = seasons[nextIndex]!;
 
     // New year after Winter
     if (state.season === "Spring") {
@@ -480,8 +480,8 @@ function handleBuildCommand(
     return false;
   }
 
-  const tile = state.map[location.y][location.x];
-  if (tile.type !== "floor") {
+  const tile = state.map[location.y]?.[location.x];
+  if (!tile || tile.type !== "floor") {
     state.events.push(
       createEvent(state.tick, `Cannot build at (${location.x}, ${location.y}) - must be on dug floor`, "warning")
     );
@@ -504,7 +504,7 @@ function handleBuildCommand(
   const building: Building = {
     id: nextBuildingId++,
     type: structure,
-    subtype: structure === "farm" ? "farm" : subtype,
+    subtype: structure === "farm" ? "farm" : (subtype as Building["subtype"]),
     x: location.x,
     y: location.y,
     width: structure === "workshop" ? 3 : 1,
@@ -515,7 +515,7 @@ function handleBuildCommand(
   state.buildings.push(building);
 
   // Update map tile
-  tile.type = structure;
+  tile!.type = structure;
 
   state.events.push(
     createEvent(state.tick, EventMessages.buildingComplete(structure, subtype), "success")

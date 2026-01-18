@@ -104,8 +104,8 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     async function setupIPC() {
       try {
         ipcServer = await createIPCServer({
-          socketPath,
-          onMessage: (msg: ControllerMessage) => {
+          socketPath: socketPath!,
+          onMessage: (msg: ControllerMessage): void => {
             if (msg.type === "command") {
               const command = msg.command as FortressCommand;
               setState((prevState) => {
@@ -350,9 +350,11 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
 
     for (let y = 0; y < state.map.length; y++) {
       const chars: React.ReactNode[] = [];
+      const row = state.map[y];
+      if (!row) continue;
 
-      for (let x = 0; x < state.map[y]?.length || 0; x++) {
-        const tile = state.map[y]?.[x];
+      for (let x = 0; x < row.length; x++) {
+        const tile = row[x];
         if (!tile) continue;
 
         // Check if there's a dwarf at this position
@@ -371,7 +373,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
             color = "red";
           } else {
             // Each dwarf gets their own color based on ID
-            color = dwarfColors[dwarfHere.id % dwarfColors.length];
+            color = dwarfColors[dwarfHere.id % dwarfColors.length] ?? "white";
             // Face shows mood or strange mood state
             if (dwarfHere.moodState && dwarfHere.moodState !== "normal") {
               char = "M"; // In a strange mood!

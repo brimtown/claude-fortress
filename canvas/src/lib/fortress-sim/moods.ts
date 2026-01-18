@@ -53,7 +53,7 @@ function generateMoodDemands(): string[] {
   const demands: string[] = [];
 
   for (let i = 0; i < numDemands; i++) {
-    const material = DEMANDABLE_MATERIALS[Math.floor(Math.random() * DEMANDABLE_MATERIALS.length)];
+    const material = DEMANDABLE_MATERIALS[Math.floor(Math.random() * DEMANDABLE_MATERIALS.length)]!;
     if (!demands.includes(material)) {
       demands.push(material);
     }
@@ -113,7 +113,7 @@ function findAvailableWorkshop(state: FortressState): Building | null {
   if (availableWorkshops.length === 0) return null;
 
   // Return random available workshop
-  return availableWorkshops[Math.floor(Math.random() * availableWorkshops.length)];
+  return availableWorkshops[Math.floor(Math.random() * availableWorkshops.length)] ?? null;
 }
 
 /**
@@ -171,7 +171,7 @@ export function triggerStrangeMood(state: FortressState, dwarf: Dwarf): boolean 
   state.events.push(
     createEvent(
       state.tick,
-      EventMessages.moodStruck(dwarf.name, moodType, workshop.subtype || "workshop"),
+      EventMessages.moodStruck(dwarf.name, moodType!, workshop.subtype || "workshop"),
       "warning"
     )
   );
@@ -209,7 +209,7 @@ export function updateMoodProgress(state: FortressState, dwarf: Dwarf): void {
     const targets = state.dwarves.filter(d => d.alive && d.id !== dwarf.id);
     if (targets.length > 0) {
       // Find nearest target
-      let nearest = targets[0];
+      let nearest = targets[0]!;
       let nearestDist = Math.abs(nearest.x - dwarf.x) + Math.abs(nearest.y - dwarf.y);
 
       for (const target of targets) {
@@ -412,9 +412,9 @@ export function checkForStrangeMoods(state: FortressState): void {
   let random = Math.random() * totalWeight;
 
   for (let i = 0; i < eligibleDwarves.length; i++) {
-    random -= weights[i];
+    random -= weights[i]!;
     if (random <= 0) {
-      triggerStrangeMood(state, eligibleDwarves[i]);
+      triggerStrangeMood(state, eligibleDwarves[i]!);
       return;
     }
   }

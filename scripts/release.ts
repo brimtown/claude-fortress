@@ -57,7 +57,9 @@ async function updateMarketplace(newVersion: string): Promise<void> {
     plugins: { version: string }[];
   };
   data.version = newVersion;
-  data.plugins[0].version = newVersion;
+  if (data.plugins[0]) {
+    data.plugins[0].version = newVersion;
+  }
   await writeJson(MARKETPLACE_JSON, data);
 }
 

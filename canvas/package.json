@@ -9,7 +9,10 @@
   "scripts": {
     "start": "bun run src/cli.ts",
     "show": "bun run src/cli.ts show",
-    "spawn": "bun run src/cli.ts spawn"
+    "spawn": "bun run src/cli.ts spawn",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "check": "bun run typecheck && bun test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",

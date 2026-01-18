@@ -1,0 +1,290 @@
+import { test, expect, describe, beforeEach } from "bun:test";
+import {
+  createDigJob,
+  createBuildJob,
+  createProductionJob,
+  isJobAccessible,
+  findJobForDwarf,
+  assignJob,
+  isAtJobLocation,
+  workOnJob,
+} from "./jobs";
+import { createInitialState } from "./engine";
+import { createDwarf } from "./dwarf";
+import type { FortressState, Job, Dwarf } from "../../scenarios/fortress/types";
+
+describe("createDigJob", () => {
+  test("creates job with correct type", () => {
+    const job = createDigJob(10, 5);
+
+    expect(job.type).toBe("dig");
+    expect(job.x).toBe(10);
+    expect(job.y).toBe(5);
+    expect(job.requiredLabor).toBe("mining");
+    expect(job.progress).toBe(0);
+  });
+
+  test("generates unique IDs", () => {
+    const job1 = createDigJob(1, 1);
+    const job2 = createDigJob(2, 2);
+    expect(job1.id).not.toBe(job2.id);
+  });
+});
+
+describe("createBuildJob", () => {
+  test("creates job with correct properties", () => {
+    const job = createBuildJob(5, 5, "workshop", "still");
+
+    expect(job.type).toBe("build");
+    expect(job.x).toBe(5);
+    expect(job.y).toBe(5);
+    expect(job.requiredLabor).toBe("carpentry");
+    expect(job.buildingType).toBe("workshop");
+    expect(job.buildingSubtype).toBe("still");
+  });
+});
+
+describe("createProductionJob", () => {
+  test("creates job with correct output", () => {
+    const job = createProductionJob(5, 5, "still", "drink", "brewing");
+
+    expect(job.type).toBe("produce");
+    expect(job.outputType).toBe("drink");
+    expect(job.requiredLabor).toBe("brewing");
+    expect(job.outputQuantity).toBe(5);
+  });
+});
+
+describe("isJobAccessible", () => {
+  let state: FortressState;
+
+  beforeEach(() => {
+    state = createInitialState("TestFortress", 42);
+  });
+
+  test("returns true for tile adjacent to floor", () => {
+    // The starting area has floor tiles at x: 1-11, y: 1-7
+    // Tile at x:12, y:3 should be adjacent to floor at x:11
+    expect(isJobAccessible(state, 12, 3)).toBe(true);
+  });
+
+  test("returns false for tile not adjacent to floor", () => {
+    // Tile at x:20, y:15 is deep in wall territory
+    expect(isJobAccessible(state, 20, 15)).toBe(false);
+  });
+
+  test("returns true for tile diagonal to floor", () => {
+    // Tile at x:12, y:8 should be diagonally adjacent to floor at x:11, y:7
+    expect(isJobAccessible(state, 12, 8)).toBe(true);
+  });
+});
+
+describe("findJobForDwarf", () => {
+  let state: FortressState;
+
+  beforeEach(() => {
+    state = createInitialState("TestFortress", 42);
+  });
+
+  test("returns null for dead dwarf", () => {
+    const dwarf = state.dwarves[0]!;
+    dwarf.alive = false;
+
+    state.jobs.push(createDigJob(12, 3));
+
+    expect(findJobForDwarf(state, dwarf)).toBeNull();
+  });
+
+  test("returns null for dwarf with critical hunger", () => {
+    const dwarf = state.dwarves.find((d) => d.labor === "mining")!;
+    dwarf.hunger = 95;
+
+    state.jobs.push(createDigJob(12, 3));
+
+    expect(findJobForDwarf(state, dwarf)).toBeNull();
+  });
+
+  test("returns null for dwarf with critical thirst", () => {
+    const dwarf = state.dwarves.find((d) => d.labor === "mining")!;
+    dwarf.thirst = 95;
+
+    state.jobs.push(createDigJob(12, 3));
+
+    expect(findJobForDwarf(state, dwarf)).toBeNull();
+  });
+
+  test("matches job to dwarf labor", () => {
+    const miner = state.dwarves.find((d) => d.labor === "mining")!;
+    const carpenter = state.dwarves.find((d) => d.labor === "carpentry")!;
+
+    const digJob = createDigJob(12, 3);
+    const buildJob = createBuildJob(5, 5, "workshop");
+
+    state.jobs.push(digJob, buildJob);
+
+    expect(findJobForDwarf(state, miner)).toBe(digJob);
+    expect(findJobForDwarf(state, carpenter)).toBe(buildJob);
+  });
+
+  test("only assigns accessible dig jobs", () => {
+    const miner = state.dwarves.find((d) => d.labor === "mining")!;
+
+    // Create an inaccessible dig job deep in walls
+    const inaccessibleJob = createDigJob(30, 15);
+    state.jobs.push(inaccessibleJob);
+
+    // Should not be assigned because it's not adjacent to floor
+    expect(findJobForDwarf(state, miner)).toBeNull();
+  });
+
+  test("does not assign already assigned jobs", () => {
+    const miners = state.dwarves.filter((d) => d.labor === "mining");
+    const miner1 = miners[0]!;
+    const miner2 = miners[1]!;
+
+    const job = createDigJob(12, 3);
+    state.jobs.push(job);
+
+    // First miner gets the job
+    const foundJob = findJobForDwarf(state, miner1);
+    expect(foundJob).toBe(job);
+
+    // Assign it
+    job.assignedDwarfId = miner1.id;
+
+    // Second miner should not get the same job
+    expect(findJobForDwarf(state, miner2)).toBeNull();
+  });
+});
+
+describe("assignJob", () => {
+  test("links dwarf and job bidirectionally", () => {
+    const dwarf = createDwarf(5, 5, "mining");
+    const job = createDigJob(10, 5);
+
+    assignJob(dwarf, job);
+
+    expect(dwarf.currentJob).toBe(job);
+    expect(job.assignedDwarfId).toBe(dwarf.id);
+  });
+});
+
+describe("isAtJobLocation", () => {
+  test("dig job requires adjacency (not exact location)", () => {
+    const dwarf = createDwarf(10, 5, "mining");
+    const digJob = createDigJob(11, 5);
+
+    // Adjacent - should be true
+    expect(isAtJobLocation(dwarf, digJob)).toBe(true);
+
+    // Same location - should be false (can't stand on wall)
+    dwarf.x = 11;
+    dwarf.y = 5;
+    expect(isAtJobLocation(dwarf, digJob)).toBe(false);
+  });
+
+  test("dig job allows diagonal adjacency", () => {
+    const dwarf = createDwarf(10, 4, "mining");
+    const digJob = createDigJob(11, 5);
+
+    // Diagonally adjacent
+    expect(isAtJobLocation(dwarf, digJob)).toBe(true);
+  });
+
+  test("build job requires exact location", () => {
+    const dwarf = createDwarf(5, 5, "carpentry");
+    const buildJob = createBuildJob(5, 5, "workshop");
+
+    expect(isAtJobLocation(dwarf, buildJob)).toBe(true);
+
+    dwarf.x = 6;
+    expect(isAtJobLocation(dwarf, buildJob)).toBe(false);
+  });
+
+  test("produce job requires exact location", () => {
+    const dwarf = createDwarf(5, 5, "brewing");
+    const produceJob = createProductionJob(5, 5, "still", "drink", "brewing");
+
+    expect(isAtJobLocation(dwarf, produceJob)).toBe(true);
+
+    dwarf.y = 6;
+    expect(isAtJobLocation(dwarf, produceJob)).toBe(false);
+  });
+});
+
+describe("workOnJob", () => {
+  let state: FortressState;
+  let dwarf: Dwarf;
+  let job: Job;
+
+  beforeEach(() => {
+    state = createInitialState("TestFortress", 42);
+    dwarf = state.dwarves[0]!;
+    job = createDigJob(12, 3);
+    state.jobs.push(job);
+    assignJob(dwarf, job);
+  });
+
+  test("increments job progress", () => {
+    const initialProgress = job.progress;
+    workOnJob(state, dwarf, job);
+    expect(job.progress).toBeGreaterThan(initialProgress);
+  });
+
+  test("returns false when job not complete", () => {
+    job.progress = 0;
+    expect(workOnJob(state, dwarf, job)).toBe(false);
+  });
+
+  test("returns true when job completes", () => {
+    job.progress = 95;
+    expect(workOnJob(state, dwarf, job)).toBe(true);
+  });
+
+  test("grief penalty slows work", () => {
+    const normalDwarf = createDwarf(5, 5, "mining");
+    const grievingDwarf = createDwarf(5, 5, "mining");
+    grievingDwarf.griefTicks = 100;
+
+    const job1 = createDigJob(12, 3);
+    const job2 = createDigJob(12, 4);
+    state.jobs.push(job1, job2);
+
+    workOnJob(state, normalDwarf, job1);
+    workOnJob(state, grievingDwarf, job2);
+
+    // Grieving dwarf makes less progress
+    expect(job2.progress).toBeLessThan(job1.progress);
+  });
+
+  test("completing dig job turns wall to floor", () => {
+    // Setup: tile at (12, 3) is a wall
+    expect(state.map[3]![12]!.type).toBe("wall");
+
+    // Complete the job
+    job.progress = 95;
+    workOnJob(state, dwarf, job);
+
+    // Should now be floor
+    expect(state.map[3]![12]!.type).toBe("floor");
+    expect(state.map[3]![12]!.dug).toBe(true);
+  });
+
+  test("completing dig job adds stone resource", () => {
+    const initialStone = state.resources.stone;
+
+    job.progress = 95;
+    workOnJob(state, dwarf, job);
+
+    expect(state.resources.stone).toBe(initialStone + 1);
+  });
+
+  test("completed job is removed from queue", () => {
+    expect(state.jobs).toContain(job);
+
+    job.progress = 95;
+    workOnJob(state, dwarf, job);
+
+    expect(state.jobs).not.toContain(job);
+  });
+});

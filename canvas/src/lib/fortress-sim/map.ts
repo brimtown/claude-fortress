@@ -34,14 +34,14 @@ export function generateMap(seed?: number): Tile[][] {
   for (let y = 0; y < MAP_HEIGHT; y++) {
     map[y] = [];
     for (let x = 0; x < MAP_WIDTH; x++) {
-      map[y][x] = { type: "wall" };
+      map[y]![x] = { type: "wall" };
     }
   }
 
   // Create a basic starting area in the top-left (pre-dug entrance area)
   for (let y = 1; y < 8; y++) {
     for (let x = 1; x < 12; x++) {
-      map[y][x] = { type: "floor", dug: true };
+      map[y]![x] = { type: "floor", dug: true };
     }
   }
 
@@ -49,8 +49,8 @@ export function generateMap(seed?: number): Tile[][] {
   for (let i = 0; i < 8; i++) {
     const x = MAP_WIDTH - 15 + rng.int(10);
     const y = rng.int(MAP_HEIGHT);
-    if (map[y][x].type === "wall") {
-      map[y][x] = { type: "tree" };
+    if (map[y]![x]!.type === "wall") {
+      map[y]![x] = { type: "tree" };
     }
   }
 
@@ -62,7 +62,7 @@ export function generateMap(seed?: number): Tile[][] {
       const y = pondY + dy;
       const x = pondX + dx;
       if (y < MAP_HEIGHT && x < MAP_WIDTH) {
-        map[y][x] = { type: "water" };
+        map[y]![x] = { type: "water" };
       }
     }
   }
@@ -71,9 +71,9 @@ export function generateMap(seed?: number): Tile[][] {
   for (let i = 0; i < 5; i++) {
     const x = rng.int(MAP_WIDTH);
     const y = rng.int(MAP_HEIGHT);
-    if (map[y][x].type === "wall") {
+    if (map[y]![x]!.type === "wall") {
       const resources: Array<"stone" | "iron" | "gold" | "copper"> = ["iron", "gold", "copper"];
-      map[y][x].resource = resources[rng.int(resources.length)];
+      map[y]![x]!.resource = resources[rng.int(resources.length)];
     }
   }
 

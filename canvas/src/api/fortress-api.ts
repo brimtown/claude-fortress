@@ -4,7 +4,6 @@ import type {
   FortressState,
   FortressSummary,
 } from "../scenarios/fortress/types";
-import type { SpawnOptions } from "./canvas-api";
 import { spawnCanvas } from "../terminal";
 import { connectToController } from "../ipc/client";
 import { getSocketPath } from "../ipc/types";
