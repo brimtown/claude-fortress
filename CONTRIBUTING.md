@@ -92,7 +92,8 @@ canvas/                          # Plugin root
 │   └── plugin.json              # Plugin manifest
 ├── .mcp.json                    # MCP server config
 ├── commands/
-│   └── embark.md                # /claude-fortress:embark
+│   ├── embark.md                # /claude-fortress:embark
+│   └── resume.md                # /claude-fortress:resume
 ├── src/
 │   ├── mcp-server.ts            # MCP tools
 │   ├── cli.ts                   # CLI commands
@@ -107,12 +108,15 @@ The plugin exposes these tools via MCP (no bash permission prompts):
 | Tool | Purpose |
 |------|---------|
 | `embark` | Start new fortress |
+| `resume` | Resume saved fortress (opens picker UI) |
 | `query` | Get fortress state |
 | `dig` | Designate mining area |
 | `build` | Place structures |
 | `assign` | Change dwarf labor |
 | `pause` | Pause/unpause simulation |
 | `save` | Manual save |
+| `screenshot` | Capture PNG of fortress map |
+| `cancel` | Cancel dig designations |
 
 ## Troubleshooting
 

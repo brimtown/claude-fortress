@@ -1,6 +1,7 @@
 import React from "react";
 import { render } from "ink";
 import { FortressCanvas } from "./fortress";
+import { SavePickerCanvas } from "./savePicker";
 import type { FortressConfig } from "../scenarios/fortress/types";
 
 // Clear screen and hide cursor
@@ -41,6 +42,8 @@ export async function renderCanvas(
         config as FortressConfig | undefined,
         options
       );
+    case "savePicker":
+      return renderSavePicker(id, options);
     default:
       console.error(`Unknown canvas kind: ${kind}`);
       process.exit(1);
@@ -58,6 +61,22 @@ async function renderFortress(
       config={config}
       socketPath={options?.socketPath}
       scenario={options?.scenario || "simulation"}
+    />,
+    {
+      exitOnCtrlC: true,
+    }
+  );
+  await waitUntilExit();
+}
+
+async function renderSavePicker(
+  id: string,
+  options?: RenderOptions
+): Promise<void> {
+  const { waitUntilExit } = render(
+    <SavePickerCanvas
+      id={id}
+      socketPath={options?.socketPath}
     />,
     {
       exitOnCtrlC: true,

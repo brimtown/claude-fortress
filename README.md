@@ -97,8 +97,29 @@ Claude spawns a fortress and you command it naturally:
 |---------|-------------|
 | `/claude-fortress:embark` | Embark on a new fortress |
 | `/claude-fortress:embark Irondeep` | Embark with a custom name |
+| `/claude-fortress:resume` | Resume a saved fortress |
 
-Or trigger naturally with: "strike the earth", "fortress", "embark", "let's play dwarves"
+Or trigger naturally with: "strike the earth", "fortress", "embark", "resume my fortress"
+
+### Resuming
+
+Use `/claude-fortress:resume` to open the save picker and return to a previous fortress. The picker shows all your saved fortresses sorted by most recent:
+
+```
+┌─────────────────────────────────────────┐
+│ FORTRESS ARCHIVES - 5 saves found       │
+├─────────────────────────────────────────┤
+│ > Irondeep      Y252  7/7   Active      │
+│   Doomgate      Y251  0/8   FALLEN      │
+│   Copperhold    Y250  12/12 Active      │
+└─────────────────────────────────────────┘
+  [↑/↓] Navigate  [Enter] Resume  [D] Delete
+```
+
+- **Arrow keys** to navigate
+- **Enter** to resume the selected fortress
+- **D** to delete a save (with confirmation)
+- **Q/Esc** to cancel
 
 ## Features
 

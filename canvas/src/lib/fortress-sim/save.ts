@@ -122,3 +122,96 @@ export async function listSaves(): Promise<string[]> {
     return [];
   }
 }
+
+/**
+ * Metadata about a saved fortress
+ */
+export interface SaveMetadata {
+  name: string;
+  year: number;
+  season: string;
+  population: number;
+  aliveCount: number;
+  savedAt: string;
+  fallen: boolean;
+  tick: number;
+}
+
+/**
+ * Get metadata for a single save file
+ */
+export async function getSaveMetadata(fortressName: string): Promise<SaveMetadata | null> {
+  const savePath = getSavePath(fortressName);
+
+  if (!existsSync(savePath)) {
+    return null;
+  }
+
+  try {
+    const json = await readFile(savePath, "utf-8");
+    const saveData = JSON.parse(json);
+
+    if (saveData.version !== 1) {
+      return null;
+    }
+
+    const state = saveData.state as FortressState;
+    const aliveDwarves = state.dwarves.filter(d => d.alive !== false).length;
+
+    return {
+      name: saveData.fortressName,
+      year: state.year,
+      season: state.season,
+      population: state.dwarves.length,
+      aliveCount: aliveDwarves,
+      savedAt: saveData.savedAt,
+      fallen: state.fallen || false,
+      tick: state.tick,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get metadata for all saves, sorted by most recently saved
+ */
+export async function getAllSaveMetadata(): Promise<SaveMetadata[]> {
+  const names = await listSaves();
+  const metadata: SaveMetadata[] = [];
+
+  for (const name of names) {
+    const meta = await getSaveMetadata(name);
+    if (meta) {
+      metadata.push(meta);
+    }
+  }
+
+  // Sort by savedAt descending (most recent first)
+  metadata.sort((a, b) => {
+    const dateA = new Date(a.savedAt).getTime();
+    const dateB = new Date(b.savedAt).getTime();
+    return dateB - dateA;
+  });
+
+  return metadata;
+}
+
+/**
+ * Delete a save file
+ */
+export async function deleteSave(fortressName: string): Promise<boolean> {
+  const savePath = getSavePath(fortressName);
+
+  if (!existsSync(savePath)) {
+    return false;
+  }
+
+  try {
+    const { unlink } = await import("node:fs/promises");
+    await unlink(savePath);
+    return true;
+  } catch {
+    return false;
+  }
+}

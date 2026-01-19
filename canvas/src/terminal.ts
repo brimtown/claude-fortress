@@ -136,13 +136,23 @@ async function getCanvasPaneId(): Promise<string | null> {
 
       const [returnedPaneId, currentCommand] = output.split(":");
 
+      // Check if it's either a canvas process or an idle shell (ready for reuse)
       const isCanvasProcess =
         currentCommand === "bun" ||
-        currentCommand === "bash" ||
         currentCommand?.includes("canvas") ||
         currentCommand?.includes("cli.ts");
 
-      if (returnedPaneId === paneId && isCanvasProcess) {
+      // Common shells that indicate the pane is idle and ready for reuse
+      const isIdleShell =
+        currentCommand === "bash" ||
+        currentCommand === "zsh" ||
+        currentCommand === "fish" ||
+        currentCommand === "sh" ||
+        currentCommand === "dash";
+
+      const canReuse = isCanvasProcess || isIdleShell;
+
+      if (returnedPaneId === paneId && canReuse) {
         return paneId;
       }
 
@@ -200,12 +210,15 @@ async function reuseExistingPane(paneId: string, wrapperScript: string): Promise
   return new Promise((resolve) => {
     const killProc = spawn("tmux", ["send-keys", "-t", paneId, "C-c"]);
     killProc.on("close", () => {
+      // Wait longer for shell to be ready after interrupting any running process
+      // Ink apps especially need time to clean up and restore terminal state
       setTimeout(() => {
-        const args = ["send-keys", "-t", paneId, `clear && ${wrapperScript}`, "Enter"];
+        // Use `bash` to run the script (consistent with createNewPane, doesn't need +x permission)
+        const args = ["send-keys", "-t", paneId, `clear && bash ${wrapperScript}`, "Enter"];
         const proc = spawn("tmux", args);
         proc.on("close", (code) => resolve(code === 0));
         proc.on("error", () => resolve(false));
-      }, 150);
+      }, 300);
     });
     killProc.on("error", () => resolve(false));
   });
