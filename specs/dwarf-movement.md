@@ -12,10 +12,13 @@ Dwarves navigate the fortress using simple greedy pathfinding, moving toward job
 ## Walkable Tiles
 
 Dwarves can walk on:
+- `grass` - Outdoor surface
 - `floor` - Dug out areas
 - `workshop` - Workshop buildings
 - `stockpile` - Storage areas
 - `bed` - Sleeping quarters
+- `farm` - Agricultural plots
+- `soil` - Farmable ground
 
 Dwarves cannot walk through:
 - `wall` - Solid stone

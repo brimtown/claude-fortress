@@ -43,15 +43,16 @@ export function createDwarf(x: number, y: number, labor?: Labor): Dwarf {
 
 /**
  * Create the starting 7 dwarves
+ * Spawns in the outdoor area (top-left of map) in a loose group
  */
 export function createStartingDwarves(): Dwarf[] {
   const dwarves: Dwarf[] = [];
   const labors: Labor[] = ["mining", "mining", "carpentry", "brewing", "farming", "hauling", "hauling"];
 
   for (let i = 0; i < 7; i++) {
-    // Place them in the starting area
-    const x = 3 + (i % 4) * 2;
-    const y = 2 + Math.floor(i / 4) * 2;
+    // Place them in the upper outdoor area (grass), where outdoor is widest
+    const x = 2 + (i % 3) * 2;           // x: 2, 4, 6, 2, 4, 6, 2
+    const y = 3 + Math.floor(i / 3) * 2; // y: 3, 3, 3, 5, 5, 5, 7
     dwarves.push(createDwarf(x, y, labors[i]));
   }
 

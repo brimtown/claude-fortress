@@ -270,7 +270,7 @@ export function updateMoodProgress(state: FortressState, dwarf: Dwarf): void {
     const newX = dwarf.x + dx;
     const newY = dwarf.y + dy;
     const tile = state.map[newY]?.[newX];
-    if (tile && (tile.type === "floor" || tile.type === "workshop")) {
+    if (tile && (tile.type === "floor" || tile.type === "grass" || tile.type === "workshop")) {
       dwarf.x = newX;
       dwarf.y = newY;
     }

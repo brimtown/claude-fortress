@@ -10,12 +10,12 @@ import type {
   ViewMode,
 } from "../scenarios/fortress/types";
 import {
-  DWARF_COLORS,
   EVENT_COLORS,
   getTileColor,
   getResourceColor,
   getHappinessColor,
   getWealthColor,
+  getDwarfColor,
 } from "./fortress/colors";
 import { createInitialState, processTick, handleCommand } from "../lib/fortress-sim/engine";
 import { getTileChar } from "../lib/fortress-sim/map";
@@ -28,6 +28,12 @@ import { formatSummaryAsMarkdown } from "../lib/markdown-formatter";
 import { renderScreenshot } from "../lib/screenshot";
 import { createIPCServer } from "../ipc/server";
 import type { ControllerMessage, Viewport } from "../ipc/types";
+import {
+  loadSettingsSync,
+  saveSettings,
+  type FortressSettings,
+  type ColorMode,
+} from "../lib/fortress-sim/settings";
 
 interface Props {
   id: string;
@@ -45,6 +51,13 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
   // UI modal state
   const [viewMode, setViewMode] = useState<ViewMode>("main");
   const [debugMode, setDebugMode] = useState(config?.debug ?? false);
+
+  // Settings state (loaded synchronously to avoid flicker)
+  const [settings, setSettings] = useState<FortressSettings>(() => loadSettingsSync());
+
+  // Menu selection state
+  const [menuSelection, setMenuSelection] = useState(0);
+  const menuItems = ["Resume", "Settings", "Save", "Quit"] as const;
 
   // Debug logging helper
   const debugLog = (...args: unknown[]) => {
@@ -329,28 +342,104 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     autoSave();
   }, [state.tick, isLoading]);
 
+  // Helper to save and exit
+  const saveAndExit = () => {
+    if (config?.save) {
+      saveFortress(fortressName, state, { silent: true }).catch((e) => debugLog("Save error:", e));
+    }
+    exit();
+  };
+
+  // Handle menu selection
+  const handleMenuSelect = (item: typeof menuItems[number]) => {
+    switch (item) {
+      case "Resume":
+        setViewMode("main");
+        break;
+      case "Settings":
+        setViewMode("settings");
+        break;
+      case "Save":
+        saveFortress(fortressName, state, { silent: true })
+          .then(() => debugLog("Manual save complete"))
+          .catch((e) => debugLog("Save error:", e));
+        setViewMode("main");
+        break;
+      case "Quit":
+        saveAndExit();
+        break;
+    }
+  };
+
+  // Toggle color mode setting
+  const toggleColorMode = () => {
+    const newMode: ColorMode = settings.colorMode === "full" ? "theme" : "full";
+    const newSettings = { ...settings, colorMode: newMode };
+    setSettings(newSettings);
+    saveSettings(newSettings).catch((e) => debugLog("Settings save error:", e));
+  };
+
   // Handle keyboard input
   useInput((input, key) => {
-    // ESC returns to main view from any modal
+    // ESC key navigation
     if (key.escape) {
-      if (viewMode !== "main") {
+      if (viewMode === "settings") {
+        // Settings -> Menu
+        setViewMode("menu");
+        return;
+      }
+      if (viewMode === "menu") {
+        // Menu -> Main (resume)
         setViewMode("main");
         return;
       }
-      // Save before exit if save is enabled
-      if (config?.save) {
-        saveFortress(fortressName, state, { silent: true }).catch((e) => debugLog("Save error:", e));
+      if (viewMode !== "main") {
+        // Other modals -> Main
+        setViewMode("main");
+        return;
       }
-      exit();
+      // Main -> Open menu (DF style)
+      setViewMode("menu");
+      setMenuSelection(0);
       return;
     }
 
-    if (input === "q") {
-      // Save before exit if save is enabled
-      if (config?.save) {
-        saveFortress(fortressName, state, { silent: true }).catch((e) => debugLog("Save error:", e));
+    // Menu navigation
+    if (viewMode === "menu") {
+      if (key.upArrow) {
+        setMenuSelection((prev) => (prev - 1 + menuItems.length) % menuItems.length);
+        return;
       }
-      exit();
+      if (key.downArrow) {
+        setMenuSelection((prev) => (prev + 1) % menuItems.length);
+        return;
+      }
+      if (key.return || input === " ") {
+        handleMenuSelect(menuItems[menuSelection]!);
+        return;
+      }
+      // Number shortcuts for menu items
+      if (input >= "1" && input <= "4") {
+        const idx = parseInt(input) - 1;
+        if (idx < menuItems.length) {
+          handleMenuSelect(menuItems[idx]!);
+        }
+        return;
+      }
+      return; // Don't process other keys in menu mode
+    }
+
+    // Settings navigation
+    if (viewMode === "settings") {
+      if (key.leftArrow || key.rightArrow || key.return || input === " ") {
+        toggleColorMode();
+        return;
+      }
+      return; // Don't process other keys in settings mode
+    }
+
+    if (input === "q") {
+      saveAndExit();
       return;
     }
 
@@ -434,7 +523,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
             color = "red";
           } else {
             // Each dwarf gets their own color based on ID
-            color = DWARF_COLORS[dwarfHere.id % DWARF_COLORS.length] ?? "white";
+            color = getDwarfColor(dwarfHere.id, settings.colorMode);
             // Face shows mood or strange mood state
             if (dwarfHere.moodState && dwarfHere.moodState !== "normal") {
               char = "M"; // In a strange mood!
@@ -448,12 +537,12 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
             }
           }
         } else if (digJob && tile?.type === "wall") {
-          // Dig designation: show wall with subtle background highlight
-          color = "yellow";
-          bgColor = "gray";
+          // Dig designation: keep wall color, add yellow background highlight
+          color = getTileColor(tile.type, x, y, tile.resource, settings.colorMode);
+          bgColor = "#3d3d00"; // Subtle dark yellow background
         } else {
           // Color tiles by type with position-based variation
-          color = getTileColor(tile.type, x, y, tile.resource);
+          color = getTileColor(tile.type, x, y, tile.resource, settings.colorMode);
         }
 
         chars.push(<Text key={`${y}-${x}`} color={color} backgroundColor={bgColor}>{char}</Text>);
@@ -512,7 +601,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         <Text dimColor>────────────────────────────────────────────────────────</Text>
         {state.dwarves.slice(0, 20).map((dwarf) => {
           const dwarfColor = dwarf.alive
-            ? (DWARF_COLORS[dwarf.id % DWARF_COLORS.length] ?? "white")
+            ? getDwarfColor(dwarf.id, settings.colorMode)
             : "red";
           const name = dwarf.name.padEnd(14, " ").slice(0, 14);
           const labor = dwarf.labor.padEnd(10, " ").slice(0, 10);
@@ -653,7 +742,68 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     );
   }
 
+  // Menu view (ESC menu - DF style)
+  const MenuView = () => (
+    <Box flexDirection="column" width={80} height={30} alignItems="center" justifyContent="center">
+      <Box
+        borderStyle="double"
+        borderColor="cyan"
+        paddingX={4}
+        paddingY={1}
+        flexDirection="column"
+      >
+        <Text bold color="cyan">MENU</Text>
+        <Text> </Text>
+        {menuItems.map((item, i) => (
+          <Text key={item} color={i === menuSelection ? "cyan" : "white"}>
+            {i === menuSelection ? "> " : "  "}
+            {i + 1}. {item}
+          </Text>
+        ))}
+        <Text> </Text>
+        <Text dimColor>Arrow keys to select, Enter to confirm, ESC to resume</Text>
+      </Box>
+    </Box>
+  );
+
+  // Settings view
+  const SettingsView = () => (
+    <Box flexDirection="column" width={80} height={30} alignItems="center" justifyContent="center">
+      <Box
+        borderStyle="double"
+        borderColor="yellow"
+        paddingX={4}
+        paddingY={1}
+        flexDirection="column"
+      >
+        <Text bold color="yellow">SETTINGS</Text>
+        <Text> </Text>
+        <Text>
+          Color Mode:{" "}
+          <Text color={settings.colorMode === "full" ? "cyan" : "gray"}>
+            {settings.colorMode === "full" ? "[Full Color]" : " Full Color "}
+          </Text>
+          {" / "}
+          <Text color={settings.colorMode === "theme" ? "cyan" : "gray"}>
+            {settings.colorMode === "theme" ? "[Theme]" : " Theme "}
+          </Text>
+        </Text>
+        <Text> </Text>
+        <Text dimColor>
+          Full Color: Consistent hex colors across all terminals
+        </Text>
+        <Text dimColor>
+          Theme: Uses terminal ANSI colors (respects your theme)
+        </Text>
+        <Text> </Text>
+        <Text dimColor>Left/Right or Enter to toggle, ESC to go back</Text>
+      </Box>
+    </Box>
+  );
+
   // Render modal views if active
+  if (viewMode === "menu") return <MenuView />;
+  if (viewMode === "settings") return <SettingsView />;
   if (viewMode === "announcements") return <AnnouncementsView />;
   if (viewMode === "units") return <UnitsView />;
   if (viewMode === "buildings") return <BuildingsView />;
@@ -736,16 +886,16 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           <Text dimColor>[u] units  [b] buildings</Text>
           <Text dimColor>[z] stocks [p] pause</Text>
           <Text dimColor>[s] save   [d] debug</Text>
-          <Text dimColor>[q] quit   [ESC] back</Text>
+          <Text dimColor>[q] quit   [ESC] menu</Text>
           {config?.save && <Text color="green">Auto-save: ON</Text>}
           {debugMode && <Text color="yellow">Debug: ON</Text>}
           <Text> </Text>
           {/* Legend */}
           <Text bold color="cyan">LEGEND</Text>
-          <Text><Text color="cyan">☺</Text><Text color="yellow">○</Text><Text color="red">☹</Text>=Dwarf <Text color="gray">#</Text>=Wall</Text>
+          <Text><Text color="cyan">☺</Text><Text color="yellow">○</Text><Text color="red">☹</Text>=Dwarf <Text color="gray">#</Text>=Rock</Text>
           <Text><Text color="green">♣</Text>=Tree <Text color="cyan">~</Text>=Water</Text>
           <Text><Text color="magenta">X</Text>=Workshop <Text color="green">%</Text>=Farm</Text>
-          <Text><Text color="red">†</Text>=Corpse <Text color="yellow" backgroundColor="gray">#</Text>=Dig</Text>
+          <Text><Text color="red">†</Text>=Corpse <Text color="gray" backgroundColor="#3d3d00">#</Text>=Dig</Text>
         </Box>
       </Box>
 

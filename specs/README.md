@@ -15,6 +15,8 @@ This directory contains specifications for game systems implemented in Claude Fo
 | [fortress-losing](./fortress-losing.md) | Grief spiral, tantrum cascade, and game over | 2026-01-14 |
 | [fortress-migration](./fortress-migration.md) | Wealth-based migration and death reputation | 2026-01-14 |
 | [simulation-ui](./simulation-ui.md) | Modal UI system, keyboard shortcuts, colors, balance | 2026-01-18 |
+| [fortress-map](./fortress-map.md) | Procedural map generation with outdoor area and mountain | 2026-01-19 |
+| [fortress-settings](./fortress-settings.md) | User preferences and color mode persistence | 2026-01-19 |
 
 ## Adding New Specs
 

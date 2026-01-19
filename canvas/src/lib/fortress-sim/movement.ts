@@ -32,9 +32,10 @@ function getWalkableTiles(state: FortressState, x: number, y: number): Array<{ x
     const tile = row[newX];
     if (!tile) continue;
 
-    // Can walk on floor, workshop, stockpile, bed
-    if (tile.type === "floor" || tile.type === "workshop" ||
-        tile.type === "stockpile" || tile.type === "bed") {
+    // Can walk on floor, grass, workshop, stockpile, bed, farm
+    if (tile.type === "floor" || tile.type === "grass" ||
+        tile.type === "workshop" || tile.type === "stockpile" ||
+        tile.type === "bed" || tile.type === "farm") {
       walkable.push({ x: newX, y: newY });
     }
   }

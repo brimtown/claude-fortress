@@ -1,20 +1,21 @@
 // Fortress Canvas Types
 
 // UI View Modes for modal system
-export type ViewMode = "main" | "announcements" | "units" | "buildings" | "stocks";
+export type ViewMode = "main" | "announcements" | "units" | "buildings" | "stocks" | "menu" | "settings";
 
 export type TileType =
   | "wall"      // # - Solid stone
   | "floor"     // . - Dug out
   | "water"     // ~ - Water
-  | "tree"      // ^ - Tree
+  | "tree"      // ♣ - Tree
+  | "grass"     // , - Grass (walkable outdoor surface)
   | "soil"      // · - Undug soil
   | "door"      // + - Door
   | "workshop"  // X - Workshop
   | "stockpile" // ≈ - Stockpile
   | "bed"       // = - Bed
   | "farm"      // % - Farm plot
-  | "corpse";   // X - Dead dwarf
+  | "corpse";   // † - Dead dwarf
 
 export interface Tile {
   type: TileType;

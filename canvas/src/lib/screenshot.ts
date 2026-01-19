@@ -367,10 +367,11 @@ export async function renderScreenshot(
   const legendItems = [
     [{ char: "\u263A", color: "cyan", label: "=Happy" }, { char: "#", color: "gray", label: "=Wall" }],
     [{ char: "\u25CB", color: "yellow", label: "=Meh" }, { char: ".", color: "white", label: "=Floor" }],
-    [{ char: "\u2639", color: "red", label: "=Sad" }, { char: "~", color: "cyan", label: "=Water" }],
-    [{ char: "♣", color: "green", label: "=Tree" }, { char: "X", color: "magenta", label: "=Workshop" }],
-    [{ char: "\u2020", color: "red", label: "=Corpse" }, { char: "%", color: "green", label: "=Farm" }],
-    [{ char: "M", color: "magenta", label: "=Mood" }, { char: "d", color: "yellow", label: "=Dig" }],
+    [{ char: "\u2639", color: "red", label: "=Sad" }, { char: ",", color: "greenBright", label: "=Grass" }],
+    [{ char: "♣", color: "green", label: "=Tree" }, { char: "~", color: "cyan", label: "=Water" }],
+    [{ char: "\u2020", color: "red", label: "=Corpse" }, { char: "X", color: "magenta", label: "=Workshop" }],
+    [{ char: "M", color: "magenta", label: "=Mood" }, { char: "%", color: "green", label: "=Farm" }],
+    [{ char: "d", color: "yellow", label: "=Dig" }, { char: "", color: "white", label: "" }],
   ];
 
   for (const row of legendItems) {

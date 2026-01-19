@@ -2,7 +2,9 @@
 
 **Strike the earth!** Command dwarves through natural language. Claude Code acts as your fortress overseer in this Dwarf Fortress-inspired ASCII simulation. Glory or death awaits. ⛏️
 
-<video src="https://github.com/user-attachments/assets/e6eb65b5-6e09-4a55-9b2c-a41e7a52489f" width="100%"></video>
+| | |
+|:---:|:---:|
+| ![Claude Fortress Screenshot](media/claude-fortress-0.4.2.png) | <video src="https://github.com/user-attachments/assets/e6eb65b5-6e09-4a55-9b2c-a41e7a52489f" width="100%"></video> |
 
 ## Install
 

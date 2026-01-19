@@ -79,7 +79,8 @@ export function isJobAccessible(state: FortressState, x: number, y: number): boo
     if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue;
 
     const neighbor = state.map[ny]?.[nx];
-    if (neighbor?.type === "floor" || neighbor?.dug) {
+    // Job is accessible if adjacent to walkable tile (floor, grass, or previously dug)
+    if (neighbor?.type === "floor" || neighbor?.type === "grass" || neighbor?.dug) {
       return true;
     }
   }

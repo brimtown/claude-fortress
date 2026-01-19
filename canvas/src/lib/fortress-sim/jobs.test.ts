@@ -62,20 +62,26 @@ describe("isJobAccessible", () => {
     state = createInitialState("TestFortress", 42);
   });
 
-  test("returns true for tile adjacent to floor", () => {
-    // The starting area has floor tiles at x: 1-11, y: 1-7
-    // Tile at x:12, y:3 should be adjacent to floor at x:11
-    expect(isJobAccessible(state, 12, 3)).toBe(true);
+  test("returns true for tile adjacent to grass", () => {
+    // Find the first wall tile at y=5 by scanning from left (grass transitions to wall)
+    let wallX = 0;
+    while (wallX < 39 && state.map[5]![wallX]!.type !== "wall") wallX++;
+    // This wall tile should be adjacent to grass on its left side
+    expect(state.map[5]![wallX - 1]!.type).toBe("grass");
+    expect(isJobAccessible(state, wallX, 5)).toBe(true);
   });
 
-  test("returns false for tile not adjacent to floor", () => {
-    // Tile at x:20, y:15 is deep in wall territory
-    expect(isJobAccessible(state, 20, 15)).toBe(false);
+  test("returns false for tile not adjacent to walkable", () => {
+    // Tile at x:30, y:5 is deep in mountain territory
+    expect(isJobAccessible(state, 30, 5)).toBe(false);
   });
 
-  test("returns true for tile diagonal to floor", () => {
-    // Tile at x:12, y:8 should be diagonally adjacent to floor at x:11, y:7
-    expect(isJobAccessible(state, 12, 8)).toBe(true);
+  test("returns true for tile diagonal to grass", () => {
+    // Find the first wall tile at y=5
+    let wallX = 0;
+    while (wallX < 39 && state.map[5]![wallX]!.type !== "wall") wallX++;
+    // Move one tile into the mountain - it should be diagonally accessible to grass
+    expect(isJobAccessible(state, wallX + 1, 5)).toBe(true);
   });
 });
 
@@ -90,7 +96,7 @@ describe("findJobForDwarf", () => {
     const dwarf = state.dwarves[0]!;
     dwarf.alive = false;
 
-    state.jobs.push(createDigJob(12, 3));
+    state.jobs.push(createDigJob(20, 5));
 
     expect(findJobForDwarf(state, dwarf)).toBeNull();
   });
@@ -99,7 +105,7 @@ describe("findJobForDwarf", () => {
     const dwarf = state.dwarves.find((d) => d.labor === "mining")!;
     dwarf.hunger = 95;
 
-    state.jobs.push(createDigJob(12, 3));
+    state.jobs.push(createDigJob(20, 5));
 
     expect(findJobForDwarf(state, dwarf)).toBeNull();
   });
@@ -108,7 +114,7 @@ describe("findJobForDwarf", () => {
     const dwarf = state.dwarves.find((d) => d.labor === "mining")!;
     dwarf.thirst = 95;
 
-    state.jobs.push(createDigJob(12, 3));
+    state.jobs.push(createDigJob(20, 5));
 
     expect(findJobForDwarf(state, dwarf)).toBeNull();
   });
@@ -117,7 +123,11 @@ describe("findJobForDwarf", () => {
     const miner = state.dwarves.find((d) => d.labor === "mining")!;
     const carpenter = state.dwarves.find((d) => d.labor === "carpentry")!;
 
-    const digJob = createDigJob(12, 3);
+    // Find first accessible wall tile (at mountain edge) at y=5
+    let wallX = 0;
+    while (wallX < 39 && state.map[5]![wallX]!.type !== "wall") wallX++;
+
+    const digJob = createDigJob(wallX, 5);
     const buildJob = createBuildJob(5, 5, "workshop");
 
     state.jobs.push(digJob, buildJob);
@@ -130,10 +140,10 @@ describe("findJobForDwarf", () => {
     const miner = state.dwarves.find((d) => d.labor === "mining")!;
 
     // Create an inaccessible dig job deep in walls
-    const inaccessibleJob = createDigJob(30, 15);
+    const inaccessibleJob = createDigJob(30, 5);
     state.jobs.push(inaccessibleJob);
 
-    // Should not be assigned because it's not adjacent to floor
+    // Should not be assigned because it's not adjacent to grass/floor
     expect(findJobForDwarf(state, miner)).toBeNull();
   });
 
@@ -142,7 +152,11 @@ describe("findJobForDwarf", () => {
     const miner1 = miners[0]!;
     const miner2 = miners[1]!;
 
-    const job = createDigJob(12, 3);
+    // Find first accessible wall tile at y=5
+    let wallX = 0;
+    while (wallX < 39 && state.map[5]![wallX]!.type !== "wall") wallX++;
+
+    const job = createDigJob(wallX, 5);
     state.jobs.push(job);
 
     // First miner gets the job
@@ -220,7 +234,8 @@ describe("workOnJob", () => {
   beforeEach(() => {
     state = createInitialState("TestFortress", 42);
     dwarf = state.dwarves[0]!;
-    job = createDigJob(12, 3);
+    // Use x=20 to ensure we're in solid mountain (mountain edge is ~x=10)
+    job = createDigJob(20, 5);
     state.jobs.push(job);
     assignJob(dwarf, job);
   });
@@ -246,8 +261,9 @@ describe("workOnJob", () => {
     const grievingDwarf = createDwarf(5, 5, "mining");
     grievingDwarf.griefTicks = 100;
 
-    const job1 = createDigJob(12, 3);
-    const job2 = createDigJob(12, 4);
+    // Use x=20+ to ensure we're in solid mountain
+    const job1 = createDigJob(20, 5);
+    const job2 = createDigJob(20, 6);
     state.jobs.push(job1, job2);
 
     workOnJob(state, normalDwarf, job1);
@@ -258,16 +274,16 @@ describe("workOnJob", () => {
   });
 
   test("completing dig job turns wall to floor", () => {
-    // Setup: tile at (12, 3) is a wall
-    expect(state.map[3]![12]!.type).toBe("wall");
+    // Setup: tile at (20, 5) is a wall (job.x, job.y from beforeEach)
+    expect(state.map[5]![20]!.type).toBe("wall");
 
     // Complete the job
     job.progress = 95;
     workOnJob(state, dwarf, job);
 
     // Should now be floor
-    expect(state.map[3]![12]!.type).toBe("floor");
-    expect(state.map[3]![12]!.dug).toBe(true);
+    expect(state.map[5]![20]!.type).toBe("floor");
+    expect(state.map[5]![20]!.dug).toBe(true);
   });
 
   test("completing dig job adds stone resource", () => {

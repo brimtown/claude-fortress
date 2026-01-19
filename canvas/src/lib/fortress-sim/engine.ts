@@ -481,9 +481,9 @@ function handleBuildCommand(
   }
 
   const tile = state.map[location.y]?.[location.x];
-  if (!tile || tile.type !== "floor") {
+  if (!tile || (tile.type !== "floor" && tile.type !== "grass")) {
     state.events.push(
-      createEvent(state.tick, `Cannot build at (${location.x}, ${location.y}) - must be on dug floor`, "warning")
+      createEvent(state.tick, `Cannot build at (${location.x}, ${location.y}) - must be on floor or grass`, "warning")
     );
     return false;
   }

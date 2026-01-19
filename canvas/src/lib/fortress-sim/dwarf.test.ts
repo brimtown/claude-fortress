@@ -37,11 +37,11 @@ describe("createStartingDwarves", () => {
   test("dwarves have valid positions in starting area", () => {
     const dwarves = createStartingDwarves();
     for (const dwarf of dwarves) {
-      // Starting area is roughly x: 1-11, y: 1-7
-      expect(dwarf.x).toBeGreaterThanOrEqual(1);
-      expect(dwarf.x).toBeLessThan(12);
-      expect(dwarf.y).toBeGreaterThanOrEqual(1);
-      expect(dwarf.y).toBeLessThan(8);
+      // Starting area is upper outdoor grass region (x: 2-6, y: 3-7)
+      expect(dwarf.x).toBeGreaterThanOrEqual(2);
+      expect(dwarf.x).toBeLessThanOrEqual(6);
+      expect(dwarf.y).toBeGreaterThanOrEqual(3);
+      expect(dwarf.y).toBeLessThanOrEqual(7);
     }
   });
 });
