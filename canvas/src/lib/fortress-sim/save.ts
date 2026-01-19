@@ -24,12 +24,17 @@ function getSavePath(fortressName: string): string {
   return join(SAVES_DIR, `${sanitized}.json`);
 }
 
+export interface SaveOptions {
+  silent?: boolean;
+}
+
 /**
  * Save fortress state to disk
  */
 export async function saveFortress(
   fortressName: string,
-  state: FortressState
+  state: FortressState,
+  options?: SaveOptions
 ): Promise<void> {
   await ensureSavesDir();
 
@@ -44,19 +49,24 @@ export async function saveFortress(
   const json = JSON.stringify(saveData, null, 2);
   await writeFile(savePath, json, "utf-8");
 
-  console.log(`✓ Fortress saved to ${savePath}`);
+  if (!options?.silent) {
+    console.log(`✓ Fortress saved to ${savePath}`);
+  }
 }
 
 /**
  * Load fortress state from disk
  */
 export async function loadFortress(
-  fortressName: string
+  fortressName: string,
+  options?: SaveOptions
 ): Promise<FortressState | null> {
   const savePath = getSavePath(fortressName);
 
   if (!existsSync(savePath)) {
-    console.log(`No save file found at ${savePath}`);
+    if (!options?.silent) {
+      console.log(`No save file found at ${savePath}`);
+    }
     return null;
   }
 
@@ -65,19 +75,25 @@ export async function loadFortress(
     const saveData = JSON.parse(json);
 
     if (saveData.version !== 1) {
-      console.warn(`Unknown save version: ${saveData.version}`);
+      if (!options?.silent) {
+        console.warn(`Unknown save version: ${saveData.version}`);
+      }
       return null;
     }
 
-    console.log(`✓ Fortress loaded from ${savePath}`);
-    console.log(`  Saved at: ${saveData.savedAt}`);
-    console.log(`  Tick: ${saveData.state.tick}`);
-    console.log(`  Year: ${saveData.state.year}, ${saveData.state.season}`);
-    console.log(`  Dwarves: ${saveData.state.dwarves.length}`);
+    if (!options?.silent) {
+      console.log(`✓ Fortress loaded from ${savePath}`);
+      console.log(`  Saved at: ${saveData.savedAt}`);
+      console.log(`  Tick: ${saveData.state.tick}`);
+      console.log(`  Year: ${saveData.state.year}, ${saveData.state.season}`);
+      console.log(`  Dwarves: ${saveData.state.dwarves.length}`);
+    }
 
     return saveData.state as FortressState;
   } catch (error) {
-    console.error(`Error loading save: ${error}`);
+    if (!options?.silent) {
+      console.error(`Error loading save: ${error}`);
+    }
     return null;
   }
 }

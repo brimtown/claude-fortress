@@ -150,9 +150,9 @@ export function processTick(state: FortressState): void {
 
     // Tantrum check - very unhappy dwarves can snap
     const moodState = dwarf.moodState || "normal";
-    if (dwarf.happiness < 20 && moodState === "normal") {
-      // 0.5% chance per tick to snap when very unhappy
-      if (Math.random() < 0.005) {
+    if (dwarf.happiness < 15 && moodState === "normal") {
+      // 0.05% chance per tick to snap when very unhappy (was 0.5% - way too high)
+      if (Math.random() < 0.0005) {
         if (Math.random() < 0.5) {
           dwarf.moodState = "berserk";
           dwarf.currentTask = "BERSERK!";

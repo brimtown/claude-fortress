@@ -1,5 +1,8 @@
 // Fortress Canvas Types
 
+// UI View Modes for modal system
+export type ViewMode = "main" | "announcements" | "units" | "buildings" | "stocks";
+
 export type TileType =
   | "wall"      // # - Solid stone
   | "floor"     // . - Dug out
@@ -243,6 +246,7 @@ export interface FortressConfig {
   seed?: number;
   save?: boolean;  // Load from save file if exists
   initialState?: FortressState;
+  debug?: boolean;  // Show debug logs (default: false)
 }
 
 // Result returned when fortress canvas closes

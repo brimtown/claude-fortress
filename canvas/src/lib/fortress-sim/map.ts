@@ -92,7 +92,7 @@ export function getTileChar(tile: Tile): string {
     case "water":
       return "~";
     case "tree":
-      return "^";
+      return "♣";
     case "soil":
       return "·";
     case "door":

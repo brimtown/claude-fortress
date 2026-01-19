@@ -151,7 +151,7 @@ export function triggerStrangeMood(state: FortressState, dwarf: Dwarf): boolean 
   dwarf.moodDemands = demands;
   dwarf.moodProgress = 0;
   dwarf.moodStartTick = state.tick;
-  dwarf.moodDeadline = state.tick + 200; // ~100 seconds to complete
+  dwarf.moodDeadline = state.tick + 600; // ~5 minutes to complete (was 200)
 
   // Mark workshop as claimed
   workshop.claimedByDwarfId = dwarf.id;
@@ -381,8 +381,8 @@ function failMood(state: FortressState, dwarf: Dwarf): void {
  * Called from the main game loop
  */
 export function checkForStrangeMoods(state: FortressState): void {
-  // Low probability per tick: ~0.05% chance (about once per 2000 ticks / ~17 minutes)
-  if (Math.random() > 0.0005) return;
+  // Very low probability per tick: ~0.01% chance (about once per 10000 ticks / ~80 minutes)
+  if (Math.random() > 0.0001) return;
 
   // Need at least one workshop
   const hasWorkshop = state.buildings.some(b => b.type === "workshop" && !b.claimedByDwarfId);

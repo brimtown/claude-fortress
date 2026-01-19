@@ -8,7 +8,7 @@ export function createStartingResources(): Resources {
     wood: 20,
     stone: 20,
     food: 100,
-    drink: 20,
+    drink: 15,
   };
 }
 

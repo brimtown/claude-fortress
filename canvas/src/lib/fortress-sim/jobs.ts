@@ -150,11 +150,11 @@ export function isAtJobLocation(dwarf: Dwarf, job: Job): boolean {
  * Returns true if job is complete
  */
 export function workOnJob(state: FortressState, dwarf: Dwarf, job: Job): boolean {
-  // Work rate: ~10 progress per tick (10 ticks to complete)
+  // Work rate: 12 progress per tick (~8 ticks to complete)
   // Grief penalty: 50% slower while grieving
-  let progressRate = 10;
+  let progressRate = 12;
   if (dwarf.griefTicks && dwarf.griefTicks > 0) {
-    progressRate = 5;
+    progressRate = 6;
   }
   job.progress += progressRate;
 
@@ -208,19 +208,13 @@ function completeJob(state: FortressState, job: Job): void {
       );
     }
   } else if (job.type === "produce" && job.outputType) {
-    // Production job completed - add resources
+    // Production job completed - add resources (no event spam for routine production)
     const quantity = job.outputQuantity || 5;
 
     if (job.outputType === "food") {
       state.resources.food += quantity;
-      state.events.push(
-        createEvent(state.tick, `Farm harvest: +${quantity} food`, "success")
-      );
     } else if (job.outputType === "drink") {
       state.resources.drink += quantity;
-      state.events.push(
-        createEvent(state.tick, `Still produced: +${quantity} drink`, "success")
-      );
     }
 
     // Clear the building's active job reference

@@ -129,7 +129,7 @@ git clone https://github.com/brimtown/claude-fortress.git
 cd claude-fortress && ./install.sh
 ```
 
-See [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md) for architecture details.
+See [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md) for architecture details and [specs/](specs/) for game system documentation.
 
 ## License
 

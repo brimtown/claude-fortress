@@ -7,7 +7,7 @@ import { getTileChar } from "./fortress-sim/map";
 import type { Viewport } from "../ipc/types";
 import { getScreenshotPath } from "../platform";
 
-// Terminal color names to RGB hex
+// Terminal color names to RGB hex (includes bright variants)
 const TERMINAL_COLORS: Record<string, string> = {
   black: "#000000",
   red: "#FF5555",
@@ -19,6 +19,14 @@ const TERMINAL_COLORS: Record<string, string> = {
   white: "#FFFFFF",
   gray: "#888888",
   orange: "#FFAA55",
+  // Bright variants for depth effect
+  greenBright: "#7FFF7F",
+  cyanBright: "#7FFFFF",
+  yellowBright: "#FFFF7F",
+  redBright: "#FF7F7F",
+  magentaBright: "#FF7FFF",
+  blueBright: "#7F7FFF",
+  whiteBright: "#FFFFFF",
 };
 
 // Dwarf color palette (matches fortress.tsx)
@@ -105,10 +113,12 @@ function getCellForPosition(
         color = "white";
         break;
       case "water":
-        color = "cyan";
+        // Alternate cyan/cyanBright for wave effect
+        color = (x + y) % 2 === 0 ? "cyan" : "cyanBright";
         break;
       case "tree":
-        color = "green";
+        // Alternate green/greenBright for depth
+        color = (x + y) % 3 === 0 ? "greenBright" : "green";
         break;
       case "workshop":
         color = "magenta";
@@ -358,7 +368,7 @@ export async function renderScreenshot(
     [{ char: "\u263A", color: "cyan", label: "=Happy" }, { char: "#", color: "gray", label: "=Wall" }],
     [{ char: "\u25CB", color: "yellow", label: "=Meh" }, { char: ".", color: "white", label: "=Floor" }],
     [{ char: "\u2639", color: "red", label: "=Sad" }, { char: "~", color: "cyan", label: "=Water" }],
-    [{ char: "^", color: "green", label: "=Tree" }, { char: "X", color: "magenta", label: "=Workshop" }],
+    [{ char: "♣", color: "green", label: "=Tree" }, { char: "X", color: "magenta", label: "=Workshop" }],
     [{ char: "\u2020", color: "red", label: "=Corpse" }, { char: "%", color: "green", label: "=Farm" }],
     [{ char: "M", color: "magenta", label: "=Mood" }, { char: "d", color: "yellow", label: "=Dig" }],
   ];

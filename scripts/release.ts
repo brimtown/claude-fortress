@@ -14,6 +14,7 @@
 const MARKETPLACE_JSON = ".claude-plugin/marketplace.json";
 const PLUGIN_JSON = "canvas/.claude-plugin/plugin.json";
 const MCP_SERVER_TS = "canvas/src/mcp-server.ts";
+const FORTRESS_TSX = "canvas/src/canvases/fortress.tsx";
 
 type BumpType = "patch" | "minor" | "major";
 
@@ -82,6 +83,19 @@ async function updateMcpServer(newVersion: string): Promise<void> {
   await Bun.write(MCP_SERVER_TS, content);
 }
 
+async function updateFortressTsx(newVersion: string): Promise<void> {
+  const file = Bun.file(FORTRESS_TSX);
+  let content = await file.text();
+
+  // Replace PLUGIN_VERSION constant (UI version display)
+  content = content.replace(
+    /const PLUGIN_VERSION = "[^"]+"/,
+    `const PLUGIN_VERSION = "${newVersion}"`
+  );
+
+  await Bun.write(FORTRESS_TSX, content);
+}
+
 async function main() {
   const arg = process.argv[2];
 
@@ -112,6 +126,9 @@ async function main() {
 
   console.log(`  Updating ${MCP_SERVER_TS}...`);
   await updateMcpServer(newVersion);
+
+  console.log(`  Updating ${FORTRESS_TSX}...`);
+  await updateFortressTsx(newVersion);
 
   console.log(`\nVersion bumped to ${newVersion}`);
   console.log(`\nNext steps:`);

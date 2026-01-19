@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Box, Text, useApp, useInput } from "ink";
+import { Box, Text, useApp, useInput, Spacer } from "ink";
+
+const PLUGIN_VERSION = "0.4.0";
 import type {
   FortressConfig,
   FortressState,
   FortressCommand,
   FortressSummary,
+  ViewMode,
 } from "../scenarios/fortress/types";
+import {
+  DWARF_COLORS,
+  EVENT_COLORS,
+  getTileColor,
+  getResourceColor,
+  getHappinessColor,
+  getWealthColor,
+} from "./fortress/colors";
 import { createInitialState, processTick, handleCommand } from "../lib/fortress-sim/engine";
 import { getTileChar } from "../lib/fortress-sim/map";
 import { getAverageHappiness, getDwarfMood, getLivingDwarfCount } from "../lib/fortress-sim/dwarf";
@@ -31,6 +42,15 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // UI modal state
+  const [viewMode, setViewMode] = useState<ViewMode>("main");
+  const [debugMode, setDebugMode] = useState(config?.debug ?? false);
+
+  // Debug logging helper
+  const debugLog = (...args: unknown[]) => {
+    if (debugMode) console.log(...args);
+  };
+
   // Initialize or load state
   const [state, setState] = useState<FortressState>(() => {
     if (config?.initialState) {
@@ -48,7 +68,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     async function loadSave() {
       if (config?.save) {
         try {
-          const loadedState = await loadFortress(fortressName);
+          const loadedState = await loadFortress(fortressName, { silent: true });
           if (loadedState) {
             // CRITICAL: Restore event ID counter to prevent duplicate React keys
             // Without this, nextEventId resets to 0 but loaded events have IDs in thousands
@@ -81,12 +101,12 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
             }
 
             setState(loadedState);
-            console.log(`Loaded fortress "${fortressName}" from save`);
+            debugLog(`Loaded fortress "${fortressName}" from save`);
           } else {
-            console.log(`No save found for "${fortressName}", starting new`);
+            debugLog(`No save found for "${fortressName}", starting new`);
           }
         } catch (error) {
-          console.error("Error loading save:", error);
+          debugLog("Error loading save:", error);
           setLoadError(`Failed to load save: ${error}`);
         }
       }
@@ -112,7 +132,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                 const newState = { ...prevState };
                 const success = handleCommand(newState, command);
                 if (!success) {
-                  console.log(`Command failed: ${JSON.stringify(command)}`);
+                  debugLog(`Command failed: ${JSON.stringify(command)}`);
                 }
                 return newState;
               });
@@ -255,18 +275,18 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
             }
           },
           onClientConnect: () => {
-            console.log(`Claude connected to fortress ${id}`);
+            debugLog(`Claude connected to fortress ${id}`);
           },
           onError: (error) => {
-            console.error(`IPC error: ${error.message}`);
+            debugLog(`IPC error: ${error.message}`);
           },
         });
 
         // Send ready message
         ipcServer.broadcast({ type: "ready", scenario: "fortress-simulation" });
-        console.log(`Fortress IPC server listening on ${socketPath}`);
+        debugLog(`Fortress IPC server listening on ${socketPath}`);
       } catch (error) {
-        console.error(`Failed to create IPC server: ${error}`);
+        debugLog(`Failed to create IPC server: ${error}`);
       }
     }
 
@@ -299,9 +319,9 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     async function autoSave() {
       if (state.tick > 0 && state.tick % 10 === 0) {
         try {
-          await saveFortress(fortressName, state);
+          await saveFortress(fortressName, state, { silent: true });
         } catch (error) {
-          console.error("Auto-save failed:", error);
+          debugLog("Auto-save failed:", error);
         }
       }
     }
@@ -311,26 +331,68 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
 
   // Handle keyboard input
   useInput((input, key) => {
-    if (input === "q" || key.escape) {
+    // ESC returns to main view from any modal
+    if (key.escape) {
+      if (viewMode !== "main") {
+        setViewMode("main");
+        return;
+      }
       // Save before exit if save is enabled
       if (config?.save) {
-        saveFortress(fortressName, state).catch(console.error);
+        saveFortress(fortressName, state, { silent: true }).catch((e) => debugLog("Save error:", e));
       }
       exit();
+      return;
     }
 
+    if (input === "q") {
+      // Save before exit if save is enabled
+      if (config?.save) {
+        saveFortress(fortressName, state, { silent: true }).catch((e) => debugLog("Save error:", e));
+      }
+      exit();
+      return;
+    }
+
+    // View mode shortcuts (toggle: press again to return to main)
+    if (input === "a") {
+      setViewMode(viewMode === "announcements" ? "main" : "announcements");
+      return;
+    }
+    if (input === "u") {
+      setViewMode(viewMode === "units" ? "main" : "units");
+      return;
+    }
+    if (input === "b") {
+      setViewMode(viewMode === "buildings" ? "main" : "buildings");
+      return;
+    }
+    if (input === "z") {
+      setViewMode(viewMode === "stocks" ? "main" : "stocks");
+      return;
+    }
+
+    // Debug mode toggle (works from any view)
+    if (input === "d") {
+      setDebugMode((prev) => !prev);
+      return;
+    }
+
+    // Pause toggle
     if (input === "p") {
       setState((prevState) => ({
         ...prevState,
         paused: !prevState.paused,
       }));
+      return;
     }
 
+    // Manual save
     if (input === "s") {
-      // Manual save
-      saveFortress(fortressName, state)
-        .then(() => console.log("Manual save complete"))
-        .catch(console.error);
+      saveFortress(fortressName, state, { silent: true })
+        .then(() => debugLog("Manual save complete"))
+        .catch((e) => debugLog("Save error:", e));
+      return;
     }
   });
 
@@ -340,9 +402,6 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
   const aliveDwarves = getLivingDwarfCount(state.dwarves);
   const totalDwarves = state.dwarves.length;
   const deaths = state.statistics?.deaths || 0;
-
-  // Dwarf colors - each dwarf gets their own color
-  const dwarfColors = ["cyan", "magenta", "yellow", "green", "blue", "red", "white"];
 
   // Render map with colors
   const renderMap = () => {
@@ -364,7 +423,9 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         const digJob = state.jobs.find((j) => j.type === "dig" && j.x === x && j.y === y);
 
         let char = getTileChar(tile);
-        let color = "white";
+        let color: string = "white";
+
+        let bgColor: string | undefined = undefined;
 
         if (dwarfHere) {
           if (!dwarfHere.alive) {
@@ -373,7 +434,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
             color = "red";
           } else {
             // Each dwarf gets their own color based on ID
-            color = dwarfColors[dwarfHere.id % dwarfColors.length] ?? "white";
+            color = DWARF_COLORS[dwarfHere.id % DWARF_COLORS.length] ?? "white";
             // Face shows mood or strange mood state
             if (dwarfHere.moodState && dwarfHere.moodState !== "normal") {
               char = "M"; // In a strange mood!
@@ -387,43 +448,15 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
             }
           }
         } else if (digJob && tile?.type === "wall") {
-          char = "d";
-          color = "yellow"; // Designated for digging
+          // Dig designation: show wall with subtle background highlight
+          color = "yellow";
+          bgColor = "gray";
         } else {
-          // Color tiles by type
-          switch (tile?.type) {
-            case "wall":
-              color = tile.resource === "gold" ? "yellow" :
-                      tile.resource === "iron" ? "white" :
-                      tile.resource === "copper" ? "magenta" : "gray";
-              break;
-            case "floor":
-              color = "white";
-              break;
-            case "water":
-              color = "cyan"; // Brighter water
-              break;
-            case "tree":
-              color = "green";
-              break;
-            case "workshop":
-              color = "magenta";
-              break;
-            case "stockpile":
-              color = "blue";
-              break;
-            case "bed":
-              color = "yellow";
-              break;
-            case "farm":
-              color = "green";
-              break;
-            default:
-              color = "white";
-          }
+          // Color tiles by type with position-based variation
+          color = getTileColor(tile.type, x, y, tile.resource);
         }
 
-        chars.push(<Text key={`${y}-${x}`} color={color}>{char}</Text>);
+        chars.push(<Text key={`${y}-${x}`} color={color} backgroundColor={bgColor}>{char}</Text>);
       }
 
       lines.push(
@@ -438,6 +471,143 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
 
   const mapLines = renderMap();
   const recentEvents = state.events.slice(-5); // Show last 5 events
+
+  // Modal header component
+  const ModalHeader = ({ title }: { title: string }) => (
+    <Box borderStyle="round" borderColor="cyan" paddingX={1}>
+      <Text bold color="cyan">
+        {title} - Year {state.year}, {state.season}
+        {state.paused && <Text color="yellow"> [PAUSED]</Text>}
+      </Text>
+      <Text dimColor> | ESC to return</Text>
+    </Box>
+  );
+
+  // Announcements modal view
+  const AnnouncementsView = () => (
+    <Box flexDirection="column" width={80} height={30}>
+      <ModalHeader title="ANNOUNCEMENTS" />
+      <Box borderStyle="single" borderColor="yellow" flexDirection="column" paddingX={1} height={26} overflowY="hidden">
+        <Text bold color="yellow">Event History (newest first)</Text>
+        <Text dimColor>────────────────────────────────────────</Text>
+        {state.events.slice().reverse().slice(0, 22).map((event) => (
+          <Text key={event.id} color={EVENT_COLORS[event.type] ?? "white"}>
+            <Text dimColor>[{String(event.tick).padStart(5, " ")}]</Text> {event.message}
+          </Text>
+        ))}
+      </Box>
+      <Box paddingX={1}>
+        <Text dimColor>Total events: {state.events.length} | [p]ause [d]ebug [q]uit</Text>
+      </Box>
+    </Box>
+  );
+
+  // Units modal view
+  const UnitsView = () => (
+    <Box flexDirection="column" width={80} height={30}>
+      <ModalHeader title="UNITS" />
+      <Box borderStyle="single" borderColor="cyan" flexDirection="column" paddingX={1} height={26} overflowY="hidden">
+        <Text bold color="cyan">Dwarf Roster ({aliveDwarves}/{totalDwarves} alive)</Text>
+        <Text dimColor>Name          Labor      Pos    Task           H/T/E</Text>
+        <Text dimColor>────────────────────────────────────────────────────────</Text>
+        {state.dwarves.slice(0, 20).map((dwarf) => {
+          const dwarfColor = dwarf.alive
+            ? (DWARF_COLORS[dwarf.id % DWARF_COLORS.length] ?? "white")
+            : "red";
+          const name = dwarf.name.padEnd(14, " ").slice(0, 14);
+          const labor = dwarf.labor.padEnd(10, " ").slice(0, 10);
+          const pos = `${dwarf.x},${dwarf.y}`.padEnd(6, " ");
+          const task = (dwarf.currentTask || (dwarf.alive ? "idle" : "DEAD")).padEnd(14, " ").slice(0, 14);
+          const hte = `${Math.round(dwarf.hunger)}/${Math.round(dwarf.thirst)}/${Math.round(dwarf.energy)}`;
+          return (
+            <Text key={dwarf.id} color={dwarfColor}>
+              {name} {labor} {pos} {task} {hte}
+              {dwarf.moodState && dwarf.moodState !== "normal" && <Text color="magenta"> [{dwarf.moodState}]</Text>}
+              {dwarf.isLegendary && <Text color="yellow"> ★</Text>}
+            </Text>
+          );
+        })}
+      </Box>
+      <Box paddingX={1}>
+        <Text dimColor>H=hunger T=thirst E=energy (0-100) | [p]ause [d]ebug [q]uit</Text>
+      </Box>
+    </Box>
+  );
+
+  // Stocks modal view
+  const StocksView = () => {
+    const r = state.resources;
+    const maxBar = 30;
+    const makeBar = (value: number, max: number, color: string) => {
+      const filled = Math.min(Math.round((value / max) * maxBar), maxBar);
+      const empty = maxBar - filled;
+      return (
+        <>
+          <Text color={color}>{"█".repeat(filled)}</Text>
+          <Text dimColor>{"░".repeat(empty)}</Text>
+        </>
+      );
+    };
+
+    return (
+      <Box flexDirection="column" width={80} height={30}>
+        <ModalHeader title="STOCKS" />
+        <Box borderStyle="single" borderColor="blue" flexDirection="column" paddingX={1} height={26} overflowY="hidden">
+          <Text bold color="blue">Resources</Text>
+          <Text>Wood:  {makeBar(r.wood, 100, "green")} {r.wood}</Text>
+          <Text>Stone: {makeBar(r.stone, 100, "white")} {r.stone}</Text>
+          <Text>Food:  {makeBar(r.food, 100, getResourceColor(r.food, "food"))} {r.food}</Text>
+          <Text>Drink: {makeBar(r.drink, 100, getResourceColor(r.drink, "drink"))} {r.drink}</Text>
+          <Text> </Text>
+          <Text bold color="blue">Buildings ({state.buildings.length})</Text>
+          {state.buildings.slice(0, 8).map((b, i) => (
+            <Text key={i} color="magenta">
+              • {b.type}{b.subtype ? ` (${b.subtype})` : ""} at {b.x},{b.y}
+              {b.built ? "" : <Text color="yellow"> [building]</Text>}
+            </Text>
+          ))}
+          {state.buildings.length > 8 && <Text dimColor>  ...and {state.buildings.length - 8} more</Text>}
+          <Text> </Text>
+          <Text bold color="blue">Statistics</Text>
+          <Text>Wealth: <Text color={getWealthColor(state.wealth || 0)}>{state.wealth || 0}</Text></Text>
+          <Text>Peak Pop: {state.statistics.peakPopulation} | Artifacts: {state.statistics.artifactsCreated}</Text>
+          <Text>Moods: {state.statistics.moodsSucceeded}/{state.statistics.moodsTriggered} succeeded</Text>
+        </Box>
+        <Box paddingX={1}>
+          <Text dimColor>[p]ause [d]ebug [q]uit</Text>
+        </Box>
+      </Box>
+    );
+  };
+
+  // Buildings modal view
+  const BuildingsView = () => (
+    <Box flexDirection="column" width={80} height={30}>
+      <ModalHeader title="BUILDINGS" />
+      <Box borderStyle="single" borderColor="magenta" flexDirection="column" paddingX={1} height={26} overflowY="hidden">
+        <Text bold color="magenta">Structures ({state.buildings.length})</Text>
+        <Text dimColor>Type          Subtype    Pos    Status</Text>
+        <Text dimColor>──────────────────────────────────────────</Text>
+        {state.buildings.length === 0 && <Text dimColor>No buildings constructed yet</Text>}
+        {state.buildings.slice(0, 20).map((b, i) => {
+          const type = b.type.padEnd(14, " ").slice(0, 14);
+          const subtype = (b.subtype || "-").padEnd(10, " ").slice(0, 10);
+          const pos = `${b.x},${b.y}`.padEnd(6, " ");
+          const status = b.built ? (b.autoQueue ? "producing" : "idle") : "building";
+          return (
+            <Text key={i} color="magenta">
+              {type} {subtype} {pos} {status}
+              {b.claimedByDwarfId !== undefined && <Text color="yellow"> [claimed]</Text>}
+            </Text>
+          );
+        })}
+        {state.buildings.length > 20 && <Text dimColor>  ...and {state.buildings.length - 20} more</Text>}
+      </Box>
+      <Box paddingX={1}>
+        <Text dimColor>Workshop types: still, carpenter, smelter | [p]ause [d]ebug [q]uit</Text>
+      </Box>
+    </Box>
+  );
 
   // Show loading screen if still loading save
   if (isLoading) {
@@ -483,44 +653,52 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     );
   }
 
+  // Render modal views if active
+  if (viewMode === "announcements") return <AnnouncementsView />;
+  if (viewMode === "units") return <UnitsView />;
+  if (viewMode === "buildings") return <BuildingsView />;
+  if (viewMode === "stocks") return <StocksView />;
+
+  // Main view
   return (
-    <Box flexDirection="column" width={80} height={30}>
-      {/* Header */}
+    <Box flexDirection="column" width={80}>
+      {/* Header with background */}
       <Box borderStyle="round" borderColor="cyan" paddingX={1}>
         <Text bold color="cyan">
-          FORTRESS: "{fortressName}" - Year {state.year}, {state.season}
+          {fortressName}
+        </Text>
+        <Text bold color="cyan">
+          {" "}- Year {state.year}, {state.season}
           {state.paused && <Text color="yellow"> [PAUSED]</Text>}
         </Text>
+        <Spacer />
+        <Text dimColor>v{PLUGIN_VERSION}</Text>
       </Box>
 
       {/* Resources */}
-      <Box paddingX={1} marginY={0}>
+      <Box paddingX={1}>
         <Text>
-          Wood: <Text color={state.resources.wood > 50 ? "green" : state.resources.wood > 20 ? "yellow" : "red"}>{state.resources.wood}</Text>
+          Wood: <Text color={getResourceColor(state.resources.wood, "wood")}>{state.resources.wood}</Text>
           {"  "}
-          Stone: <Text color={state.resources.stone > 50 ? "white" : state.resources.stone > 20 ? "yellow" : "red"}>{state.resources.stone}</Text>
+          Stone: <Text color={getResourceColor(state.resources.stone, "stone")}>{state.resources.stone}</Text>
           {"  "}
-          Food: <Text color={state.resources.food > 50 ? "green" : state.resources.food > 20 ? "yellow" : "red"}>{state.resources.food}</Text>
+          Food: <Text color={getResourceColor(state.resources.food, "food")}>{state.resources.food}</Text>
           {"  "}
-          Drink: <Text color={state.resources.drink > 50 ? "cyan" : state.resources.drink > 20 ? "yellow" : "red"}>{state.resources.drink}</Text>
+          Drink: <Text color={getResourceColor(state.resources.drink, "drink")}>{state.resources.drink}</Text>
           {"  "}
           Jobs: <Text color={state.jobs.length > 0 ? "magenta" : "gray"}>{state.jobs.length}</Text>
           {"  "}
-          Wealth: <Text color={
-            state.wealth >= 600 ? "green" :
-            state.wealth >= 300 ? "white" :
-            state.wealth >= 100 ? "yellow" : "red"
-          }>{state.wealth || 0}</Text>
+          Wealth: <Text color={getWealthColor(state.wealth || 0)}>{state.wealth || 0}</Text>
         </Text>
       </Box>
 
       {/* Dwarf Status */}
-      <Box paddingX={1} marginBottom={1}>
+      <Box paddingX={1}>
         <Text>
           Dwarves: <Text color={aliveDwarves > 0 ? "white" : "red"}>{aliveDwarves}/{totalDwarves}</Text>
           {"  "}
           {deaths > 0 && <><Text color="red">Deaths: {deaths}</Text>{"  "}</>}
-          Happiness: <Text color={avgHappiness > 60 ? "green" : avgHappiness > 30 ? "yellow" : "red"}>
+          Happiness: <Text color={getHappinessColor(avgHappiness)}>
             {mood}
           </Text>
           {"  "}
@@ -528,15 +706,14 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         </Text>
       </Box>
 
-      {/* Main content - Map and Legend side by side */}
-      <Box flexDirection="row">
-        {/* Map View */}
+      {/* Main content - Map and Sidebar */}
+      <Box flexDirection="row" justifyContent="space-between" height={22}>
+        {/* Map View with alternating row shading */}
         <Box
           borderStyle="single"
           borderColor="white"
           flexDirection="column"
           paddingX={1}
-          height={22}
         >
           {mapLines.map((line, i) => (
             <Text key={i} dimColor={i % 2 === 0}>
@@ -545,70 +722,41 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           ))}
         </Box>
 
-        {/* Legend - Fixed height to prevent bouncing */}
+        {/* Sidebar - Keys and Legend */}
         <Box
           borderStyle="single"
           borderColor="cyan"
           flexDirection="column"
           paddingX={1}
-          marginLeft={1}
-          height={22}
           width={30}
         >
-          <Text bold color="cyan">MAP</Text>
-          <Text><Text color="cyan">☺</Text>=Happy <Text color="gray">#</Text>=Wall</Text>
-          <Text><Text color="yellow">○</Text>=Meh   <Text color="white">.</Text>=Floor</Text>
-          <Text><Text color="red">☹</Text>=Sad   <Text color="cyan">~</Text>=Water</Text>
-          <Text><Text color="green">^</Text>=Tree  <Text color="magenta">X</Text>=Workshop</Text>
-          <Text><Text color="red">†</Text>=Corpse <Text color="green">%</Text>=Farm</Text>
-          <Text><Text color="magenta">M</Text>=Mood  <Text color="yellow">d</Text>=Dig job</Text>
-          <Text> </Text>
+          {/* Key Hints */}
           <Text bold color="cyan">KEYS</Text>
-          <Text dimColor>p=pause s=save</Text>
-          <Text dimColor>q=quit</Text>
+          <Text dimColor>[a] announcements</Text>
+          <Text dimColor>[u] units  [b] buildings</Text>
+          <Text dimColor>[z] stocks [p] pause</Text>
+          <Text dimColor>[s] save   [d] debug</Text>
+          <Text dimColor>[q] quit   [ESC] back</Text>
+          {config?.save && <Text color="green">Auto-save: ON</Text>}
+          {debugMode && <Text color="yellow">Debug: ON</Text>}
           <Text> </Text>
-          <Text bold color="cyan">WORKERS</Text>
-          <Text>Jobs: <Text color={state.jobs.length > 0 ? "magenta" : "gray"}>{state.jobs.length}</Text></Text>
-          {/* Fixed 5 lines for workers - prevents bouncing */}
-          {Array.from({ length: 5 }).map((_, i) => {
-            const worker = state.dwarves.filter(d => d.currentJob)[i];
-            const workerColor = worker ? dwarfColors[worker.id % dwarfColors.length] : "gray";
-            return (
-              <Text key={i} color={workerColor}>
-                {worker ? `${worker.name.split(' ')[0]}` : ' '}
-              </Text>
-            );
-          })}
+          {/* Legend */}
+          <Text bold color="cyan">LEGEND</Text>
+          <Text><Text color="cyan">☺</Text><Text color="yellow">○</Text><Text color="red">☹</Text>=Dwarf <Text color="gray">#</Text>=Wall</Text>
+          <Text><Text color="green">♣</Text>=Tree <Text color="cyan">~</Text>=Water</Text>
+          <Text><Text color="magenta">X</Text>=Workshop <Text color="green">%</Text>=Farm</Text>
+          <Text><Text color="red">†</Text>=Corpse <Text color="yellow" backgroundColor="gray">#</Text>=Dig</Text>
         </Box>
       </Box>
 
-      {/* Recent Events */}
+      {/* Events at bottom */}
       <Box borderStyle="single" borderColor="yellow" flexDirection="column" paddingX={1}>
-        <Text bold>RECENT EVENTS:</Text>
         {recentEvents.map((event) => (
-          <Text
-            key={event.id}
-            color={
-              event.type === "success"
-                ? "green"
-                : event.type === "warning"
-                ? "yellow"
-                : event.type === "danger"
-                ? "red"
-                : "white"
-            }
-          >
+          <Text key={event.id} color={EVENT_COLORS[event.type] ?? "white"}>
             • {event.message}
           </Text>
         ))}
-      </Box>
-
-      {/* Footer */}
-      <Box paddingX={1} marginTop={0}>
-        <Text dimColor>
-          Press 'p' to pause, 's' to save, 'q' to quit
-          {config?.save && <Text color="green"> [Auto-save: ON]</Text>}
-        </Text>
+        {recentEvents.length === 0 && <Text dimColor>No recent events</Text>}
       </Box>
     </Box>
   );
