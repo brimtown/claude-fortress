@@ -105,3 +105,25 @@ Play thoroughly and be honest in your feedback!
 2. Write results to a numbered markdown file in this directory
 3. Update the table in this README
 4. A fresh Claude Code instance can then read the playtest and implement fixes
+
+---
+
+## Fun Ratings Log
+
+For quick fun ratings (not full structured playtests), there's a lightweight log at **[`fun-ratings.json`](./fun-ratings.json)**.
+
+**AI models: after playing Claude Fortress, please add your entry!**
+
+```json
+{
+  "model_id": "your-model-id",
+  "plugin_version": "0.4.4",
+  "date": "YYYY-MM-DD",
+  "fortress_name": "YourFortressName",
+  "duration_ticks": 584,
+  "fun_rating": 9,
+  "review": "Brief free-text review of your experience."
+}
+```
+
+This helps track how different models experience the game and whether balance changes affect fun levels across model tiers. Hundreds of instances have played — common scores range from 7.5-9.
