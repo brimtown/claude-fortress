@@ -20,6 +20,7 @@ import {
 import { createInitialState, processTick, handleCommand } from "../lib/fortress-sim/engine";
 import { getTileChar } from "../lib/fortress-sim/map";
 import { getAverageHappiness, getDwarfMood, getLivingDwarfCount } from "../lib/fortress-sim/dwarf";
+import { getTopThoughts } from "../lib/fortress-sim/thoughts";
 import { saveFortress, loadFortress } from "../lib/fortress-sim/save";
 import { restoreEventIdCounter } from "../lib/fortress-sim/events";
 import { buildInspectResult } from "../lib/fortress-sim/inspect";
@@ -58,6 +59,10 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
   // Menu selection state
   const [menuSelection, setMenuSelection] = useState(0);
   const menuItems = ["Resume", "Settings", "Save", "Quit"] as const;
+
+  // Units view selection state
+  const [unitSelection, setUnitSelection] = useState(0);
+  const [unitDetailView, setUnitDetailView] = useState(false);
 
   // Debug logging helper
   const debugLog = (...args: unknown[]) => {
@@ -183,6 +188,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                     }
                   }
 
+                  const topThoughts = getTopThoughts(d, 3);
                   return {
                     id: d.id,
                     name: d.name,
@@ -196,6 +202,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                     moodState: d.moodState,
                     moodDemands: d.moodDemands,
                     isLegendary: d.isLegendary,
+                    topThoughts: topThoughts.length > 0 ? topThoughts : undefined,
                   };
                 });
 
@@ -438,8 +445,48 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
       return; // Don't process other keys in settings mode
     }
 
-    if (input === "q") {
-      saveAndExit();
+    // Units view navigation
+    if (viewMode === "units") {
+      const dwarfCount = state.dwarves.length;
+      if (unitDetailView) {
+        // In detail view: Esc/Enter/u goes back to list
+        if (key.escape || key.return || input === "u") {
+          setUnitDetailView(false);
+          return;
+        }
+        // Left/Right arrows to navigate between dwarves while in detail
+        if (key.leftArrow) {
+          setUnitSelection((prev) => (prev - 1 + dwarfCount) % dwarfCount);
+          return;
+        }
+        if (key.rightArrow) {
+          setUnitSelection((prev) => (prev + 1) % dwarfCount);
+          return;
+        }
+      } else {
+        // In list view: arrows to navigate, Enter to view detail
+        if (key.upArrow) {
+          setUnitSelection((prev) => (prev - 1 + dwarfCount) % dwarfCount);
+          return;
+        }
+        if (key.downArrow) {
+          setUnitSelection((prev) => (prev + 1) % dwarfCount);
+          return;
+        }
+        if (key.return && dwarfCount > 0) {
+          setUnitDetailView(true);
+          return;
+        }
+      }
+      // Let other keys fall through (q, p, d, etc.)
+    }
+
+    // Pause toggle (space = DF style)
+    if (input === " ") {
+      setState((prevState) => ({
+        ...prevState,
+        paused: !prevState.paused,
+      }));
       return;
     }
 
@@ -449,7 +496,14 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
       return;
     }
     if (input === "u") {
-      setViewMode(viewMode === "units" ? "main" : "units");
+      if (viewMode === "units") {
+        setViewMode("main");
+        setUnitDetailView(false);
+      } else {
+        setViewMode("units");
+        setUnitSelection(0);
+        setUnitDetailView(false);
+      }
       return;
     }
     if (input === "b") {
@@ -464,23 +518,6 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     // Debug mode toggle (works from any view)
     if (input === "d") {
       setDebugMode((prev) => !prev);
-      return;
-    }
-
-    // Pause toggle
-    if (input === "p") {
-      setState((prevState) => ({
-        ...prevState,
-        paused: !prevState.paused,
-      }));
-      return;
-    }
-
-    // Manual save
-    if (input === "s") {
-      saveFortress(fortressName, state, { silent: true })
-        .then(() => debugLog("Manual save complete"))
-        .catch((e) => debugLog("Save error:", e));
       return;
     }
   });
@@ -586,42 +623,130 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         ))}
       </Box>
       <Box paddingX={1}>
-        <Text dimColor>Total events: {state.events.length} | [p]ause [d]ebug [q]uit</Text>
+        <Text dimColor>Total events: {state.events.length} | [Space] pause | [Esc] menu</Text>
       </Box>
     </Box>
   );
 
-  // Units modal view
-  const UnitsView = () => (
-    <Box flexDirection="column" width={80} height={30}>
-      <ModalHeader title="UNITS" />
-      <Box borderStyle="single" borderColor="cyan" flexDirection="column" paddingX={1} height={26} overflowY="hidden">
-        <Text bold color="cyan">Dwarf Roster ({aliveDwarves}/{totalDwarves} alive)</Text>
-        <Text dimColor>Name          Labor      Pos    Task           H/T/E</Text>
-        <Text dimColor>────────────────────────────────────────────────────────</Text>
-        {state.dwarves.slice(0, 20).map((dwarf) => {
-          const dwarfColor = dwarf.alive
-            ? getDwarfColor(dwarf.id, settings.colorMode)
-            : "red";
-          const name = dwarf.name.padEnd(14, " ").slice(0, 14);
-          const labor = dwarf.labor.padEnd(10, " ").slice(0, 10);
-          const pos = `${dwarf.x},${dwarf.y}`.padEnd(6, " ");
-          const task = (dwarf.currentTask || (dwarf.alive ? "idle" : "DEAD")).padEnd(14, " ").slice(0, 14);
-          const hte = `${Math.round(dwarf.hunger)}/${Math.round(dwarf.thirst)}/${Math.round(dwarf.energy)}`;
-          return (
-            <Text key={dwarf.id} color={dwarfColor}>
-              {name} {labor} {pos} {task} {hte}
-              {dwarf.moodState && dwarf.moodState !== "normal" && <Text color="magenta"> [{dwarf.moodState}]</Text>}
-              {dwarf.isLegendary && <Text color="yellow"> ★</Text>}
+  // Units modal view - list or detail
+  const UnitsView = () => {
+    const selectedDwarf = state.dwarves[unitSelection];
+
+    // Detail view for selected dwarf
+    if (unitDetailView && selectedDwarf) {
+      const d = selectedDwarf;
+      const thoughts = getTopThoughts(d, 10); // Get all thoughts
+      const personality = d.personality;
+
+      // Need bars
+      const needBar = (value: number, color: string) => {
+        const filled = Math.round(value / 5); // 20 chars max
+        const empty = 20 - filled;
+        return (
+          <>
+            <Text color={color}>{"█".repeat(filled)}</Text>
+            <Text dimColor>{"░".repeat(empty)}</Text>
+          </>
+        );
+      };
+
+      const hungerColor = d.hunger > 70 ? "red" : d.hunger > 40 ? "yellow" : "green";
+      const thirstColor = d.thirst > 70 ? "red" : d.thirst > 40 ? "yellow" : "cyan";
+      const energyColor = d.energy < 30 ? "red" : d.energy < 60 ? "yellow" : "green";
+      const happyColor = d.happiness < 30 ? "red" : d.happiness < 50 ? "yellow" : "green";
+
+      return (
+        <Box flexDirection="column" width={80} height={30}>
+          <ModalHeader title={`UNIT: ${d.name}`} />
+          <Box borderStyle="single" borderColor="cyan" flexDirection="column" paddingX={1} height={26} overflowY="hidden">
+            {/* Status line */}
+            <Text>
+              <Text bold color={d.alive ? "cyan" : "red"}>{d.alive ? "Alive" : "DEAD"}</Text>
+              <Text> | </Text>
+              <Text color="white">{d.labor}</Text>
+              <Text> | Pos: {d.x},{d.y}</Text>
+              {d.moodState && d.moodState !== "normal" && <Text color="magenta"> | [{d.moodState}]</Text>}
+              {d.isLegendary && <Text color="yellow"> | ★ Legendary</Text>}
             </Text>
-          );
-        })}
+            <Text dimColor>────────────────────────────────────────────────────────</Text>
+
+            {/* Needs */}
+            <Text bold color="white">Needs</Text>
+            <Text>Hunger:    {needBar(d.hunger, hungerColor)} <Text color={hungerColor}>{Math.round(d.hunger)}</Text></Text>
+            <Text>Thirst:    {needBar(d.thirst, thirstColor)} <Text color={thirstColor}>{Math.round(d.thirst)}</Text></Text>
+            <Text>Energy:    {needBar(100 - d.energy, energyColor)} <Text color={energyColor}>{Math.round(d.energy)}</Text></Text>
+            <Text>Happiness: {needBar(d.happiness, happyColor)} <Text color={happyColor}>{Math.round(d.happiness)}</Text></Text>
+            <Text> </Text>
+
+            {/* Personality */}
+            {personality && (
+              <>
+                <Text bold color="white">Personality</Text>
+                <Text>
+                  Base Happiness: <Text color="cyan">{personality.baseHappiness}</Text>
+                  {" | "}Resilience: <Text color={personality.resilience > 1 ? "green" : personality.resilience < 1 ? "red" : "white"}>{personality.resilience.toFixed(2)}</Text>
+                  {" | "}Empathy: <Text color={personality.empathy > 1 ? "magenta" : personality.empathy < 1 ? "blue" : "white"}>{personality.empathy.toFixed(2)}</Text>
+                </Text>
+                <Text> </Text>
+              </>
+            )}
+
+            {/* Thoughts */}
+            <Text bold color="white">Thoughts {thoughts.length > 0 ? `(${thoughts.length})` : ""}</Text>
+            {thoughts.length === 0 ? (
+              <Text dimColor>No active thoughts</Text>
+            ) : (
+              thoughts.slice(0, 8).map((thought, i) => {
+                const isPositive = thought.startsWith("+");
+                return (
+                  <Text key={i} color={isPositive ? "green" : "red"}>• {thought}</Text>
+                );
+              })
+            )}
+            {thoughts.length > 8 && <Text dimColor>  ...and {thoughts.length - 8} more</Text>}
+          </Box>
+          <Box paddingX={1}>
+            <Text dimColor>←/→ prev/next dwarf | Enter/Esc back to list | [u] close</Text>
+          </Box>
+        </Box>
+      );
+    }
+
+    // List view
+    return (
+      <Box flexDirection="column" width={80} height={30}>
+        <ModalHeader title="UNITS" />
+        <Box borderStyle="single" borderColor="cyan" flexDirection="column" paddingX={1} height={26} overflowY="hidden">
+          <Text bold color="cyan">Dwarf Roster ({aliveDwarves}/{totalDwarves} alive)</Text>
+          <Text dimColor>   Name          Labor      Pos    Task           Happy</Text>
+          <Text dimColor>────────────────────────────────────────────────────────</Text>
+          {state.dwarves.slice(0, 20).map((dwarf, index) => {
+            const isSelected = index === unitSelection;
+            const dwarfColor = dwarf.alive
+              ? getDwarfColor(dwarf.id, settings.colorMode)
+              : "red";
+            const selector = isSelected ? "►" : " ";
+            const name = dwarf.name.padEnd(14, " ").slice(0, 14);
+            const labor = dwarf.labor.padEnd(10, " ").slice(0, 10);
+            const pos = `${dwarf.x},${dwarf.y}`.padEnd(6, " ");
+            const task = (dwarf.currentTask || (dwarf.alive ? "idle" : "DEAD")).padEnd(14, " ").slice(0, 14);
+            const happy = Math.round(dwarf.happiness);
+            const happyColor = happy < 30 ? "red" : happy < 50 ? "yellow" : "green";
+            return (
+              <Text key={dwarf.id} color={isSelected ? "white" : dwarfColor} inverse={isSelected}>
+                {selector} {name} {labor} {pos} {task} <Text color={isSelected ? "white" : happyColor}>{happy.toString().padStart(3)}</Text>
+                {dwarf.moodState && dwarf.moodState !== "normal" && <Text color={isSelected ? "white" : "magenta"}> [{dwarf.moodState}]</Text>}
+                {dwarf.isLegendary && <Text color={isSelected ? "white" : "yellow"}> ★</Text>}
+              </Text>
+            );
+          })}
+        </Box>
+        <Box paddingX={1}>
+          <Text dimColor>↑/↓ select | Enter details | [u] close | [Space] pause | [Esc] menu</Text>
+        </Box>
       </Box>
-      <Box paddingX={1}>
-        <Text dimColor>H=hunger T=thirst E=energy (0-100) | [p]ause [d]ebug [q]uit</Text>
-      </Box>
-    </Box>
-  );
+    );
+  };
 
   // Stocks modal view
   const StocksView = () => {
@@ -663,7 +788,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           <Text>Moods: {state.statistics.moodsSucceeded}/{state.statistics.moodsTriggered} succeeded</Text>
         </Box>
         <Box paddingX={1}>
-          <Text dimColor>[p]ause [d]ebug [q]uit</Text>
+          <Text dimColor>[Space] pause | [Esc] menu</Text>
         </Box>
       </Box>
     );
@@ -693,7 +818,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         {state.buildings.length > 20 && <Text dimColor>  ...and {state.buildings.length - 20} more</Text>}
       </Box>
       <Box paddingX={1}>
-        <Text dimColor>Workshop types: still, carpenter, smelter | [p]ause [d]ebug [q]uit</Text>
+        <Text dimColor>Workshop types: still, carpenter, smelter | [Space] pause | [Esc] menu</Text>
       </Box>
     </Box>
   );
@@ -884,9 +1009,8 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           <Text bold color="cyan">KEYS</Text>
           <Text dimColor>[a] announcements</Text>
           <Text dimColor>[u] units  [b] buildings</Text>
-          <Text dimColor>[z] stocks [p] pause</Text>
-          <Text dimColor>[s] save   [d] debug</Text>
-          <Text dimColor>[q] quit   [ESC] menu</Text>
+          <Text dimColor>[z] stocks [d] debug</Text>
+          <Text dimColor>[Space] pause  [Esc] menu</Text>
           {config?.save && <Text color="green">Auto-save: ON</Text>}
           {debugMode && <Text color="yellow">Debug: ON</Text>}
           <Text> </Text>

@@ -1,5 +1,6 @@
 import { test, expect, describe, beforeEach } from "bun:test";
 import { createInitialState, processTick, handleCommand } from "./engine";
+import { hasThought } from "./thoughts";
 import type { FortressState } from "../../scenarios/fortress/types";
 
 describe("createInitialState", () => {
@@ -180,5 +181,50 @@ describe("handleCommand", () => {
     expect(state.buildings.length).toBe(1);
     expect(state.buildings[0]!.type).toBe("workshop");
     expect(state.buildings[0]!.subtype).toBe("still");
+  });
+});
+
+describe("thought triggers in processTick", () => {
+  let state: FortressState;
+
+  beforeEach(() => {
+    state = createInitialState("TestFortress", 42);
+  });
+
+  test("adds ate_while_starving thought when eating at high hunger", () => {
+    const dwarf = state.dwarves[0]!;
+    dwarf.hunger = 95; // Critical hunger (>90 triggers eating, >80 triggers thought)
+    state.resources.food = 10;
+
+    expect(hasThought(dwarf, "ate_while_starving")).toBe(false);
+
+    processTick(state);
+
+    expect(hasThought(dwarf, "ate_while_starving")).toBe(true);
+    expect(dwarf.hunger).toBe(0); // Should have eaten
+  });
+
+  test("adds drank_while_parched thought when drinking at high thirst", () => {
+    const dwarf = state.dwarves[0]!;
+    dwarf.thirst = 95; // Critical thirst (>90 triggers drinking, >80 triggers thought)
+    state.resources.drink = 10;
+
+    expect(hasThought(dwarf, "drank_while_parched")).toBe(false);
+
+    processTick(state);
+
+    expect(hasThought(dwarf, "drank_while_parched")).toBe(true);
+    expect(dwarf.thirst).toBe(0); // Should have drunk
+  });
+
+  test("does not add ate_while_starving when hunger is moderate", () => {
+    const dwarf = state.dwarves[0]!;
+    dwarf.hunger = 75; // Not critical enough to eat
+    state.resources.food = 10;
+
+    processTick(state);
+
+    // Hunger wasn't high enough to trigger eating
+    expect(hasThought(dwarf, "ate_while_starving")).toBe(false);
   });
 });

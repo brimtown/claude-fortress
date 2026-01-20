@@ -12,6 +12,7 @@ import type {
   Job,
   Building,
 } from "../../scenarios/fortress/types";
+import { getTopThoughts } from "./thoughts";
 
 /**
  * Check if a point is within radius of center
@@ -28,6 +29,7 @@ function inRadius(x: number, y: number, centerX: number, centerY: number, radius
  * Convert full Dwarf to DwarfStatus for inspection results
  */
 function dwarfToStatus(dwarf: Dwarf): DwarfStatus {
+  const topThoughts = getTopThoughts(dwarf, 3);
   return {
     id: dwarf.id,
     name: dwarf.name,
@@ -41,6 +43,7 @@ function dwarfToStatus(dwarf: Dwarf): DwarfStatus {
     moodState: dwarf.moodState,
     moodDemands: dwarf.moodDemands,
     isLegendary: dwarf.isLegendary,
+    topThoughts: topThoughts.length > 0 ? topThoughts : undefined,
   };
 }
 

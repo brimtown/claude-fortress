@@ -12,6 +12,7 @@
 import type { Dwarf, FortressState, MoodState, Building } from "../../scenarios/fortress/types";
 import { createEvent, EventMessages } from "./events";
 import { killDwarf } from "./dwarf";
+import { addThought, calculateHappiness } from "./thoughts";
 
 // Artifact name components for generating legendary item names
 const ARTIFACT_PREFIXES = [
@@ -151,7 +152,7 @@ export function triggerStrangeMood(state: FortressState, dwarf: Dwarf): boolean 
   dwarf.moodDemands = demands;
   dwarf.moodProgress = 0;
   dwarf.moodStartTick = state.tick;
-  dwarf.moodDeadline = state.tick + 600; // ~5 minutes to complete (was 200)
+  dwarf.moodDeadline = state.tick + 200; // ~100 seconds to complete
 
   // Mark workshop as claimed
   workshop.claimedByDwarfId = dwarf.id;
@@ -332,8 +333,9 @@ function completeMood(state: FortressState, dwarf: Dwarf): void {
     workshop.claimedAtTick = undefined;
   }
 
-  // Boost happiness
-  dwarf.happiness = 100;
+  // Add created_artifact thought for long-lasting happiness boost
+  addThought(dwarf, state.tick, "created_artifact", `created ${artifactName}`);
+  dwarf.happiness = calculateHappiness(dwarf);
 
   // Update statistics
   state.statistics.artifactsCreated++;
@@ -381,8 +383,8 @@ function failMood(state: FortressState, dwarf: Dwarf): void {
  * Called from the main game loop
  */
 export function checkForStrangeMoods(state: FortressState): void {
-  // Very low probability per tick: ~0.01% chance (about once per 10000 ticks / ~80 minutes)
-  if (Math.random() > 0.0001) return;
+  // Low probability per tick: ~0.05% chance (about once per 2000 ticks / ~17 minutes)
+  if (Math.random() > 0.0005) return;
 
   // Need at least one workshop
   const hasWorkshop = state.buildings.some(b => b.type === "workshop" && !b.claimedByDwarfId);

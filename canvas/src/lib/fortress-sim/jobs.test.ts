@@ -11,6 +11,7 @@ import {
 } from "./jobs";
 import { createInitialState } from "./engine";
 import { createDwarf } from "./dwarf";
+import { addThought } from "./thoughts";
 import type { FortressState, Job, Dwarf } from "../../scenarios/fortress/types";
 
 describe("createDigJob", () => {
@@ -259,7 +260,8 @@ describe("workOnJob", () => {
   test("grief penalty slows work", () => {
     const normalDwarf = createDwarf(5, 5, "mining");
     const grievingDwarf = createDwarf(5, 5, "mining");
-    grievingDwarf.griefTicks = 100;
+    // Add witnessed_death thought to trigger grief penalty
+    addThought(grievingDwarf, 0, "witnessed_death");
 
     // Use x=20+ to ensure we're in solid mountain
     const job1 = createDigJob(20, 5);

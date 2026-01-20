@@ -29,6 +29,34 @@ export type DeathCause = "starvation" | "dehydration" | "insanity" | "berserk_at
 
 export type MoodState = "normal" | "fey" | "possessed" | "secretive" | "melancholic" | "berserk";
 
+// Thoughts system - persistent memory affecting happiness
+export type ThoughtType =
+  | "witnessed_death"      // -30, 300 ticks, STACKS
+  | "starving"             // -20, condition-based
+  | "dehydrated"           // -25, condition-based
+  | "exhausted"            // -10, condition-based
+  | "ate_while_starving"   // +15, 100 ticks
+  | "drank_while_parched"  // +15, 100 ticks
+  | "well_fed"             // +5, condition-based
+  | "well_hydrated"        // +5, condition-based
+  | "witnessed_tantrum"    // -15, 150 ticks, STACKS
+  | "created_artifact";    // +50, 500 ticks
+
+export interface Thought {
+  type: ThoughtType;
+  createdAt: number;
+  expiresAt: number;       // Infinity for condition-based
+  modifier: number;
+  intensity: number;       // Stacking counter
+  description?: string;
+}
+
+export interface DwarfPersonality {
+  baseHappiness: number;   // 45-64
+  resilience: number;      // 0.7-1.3 (negative thought decay multiplier)
+  empathy: number;         // 0.7-1.3 (grief intensity multiplier)
+}
+
 export interface Dwarf {
   id: number;
   name: string;
@@ -41,6 +69,12 @@ export interface Dwarf {
   currentTask?: string;
   currentJob?: Job;    // The job this dwarf is actively working on
   happiness: number;   // 0-100, higher = happier
+
+  // Individual variation - each dwarf has slightly different metabolism
+  needRates: {
+    hunger: number;    // Base ~0.4, varies 0.3-0.5
+    thirst: number;    // Base ~0.7, varies 0.5-0.9
+  };
 
   // Death system
   alive: boolean;               // Default true, false when dead
@@ -61,6 +95,10 @@ export interface Dwarf {
   moodDeadline?: number;        // Tick when mood fails if demands unmet
   artifactCreated?: string;     // Name of legendary artifact (if successful)
   isLegendary?: boolean;        // True if completed a mood successfully
+
+  // Thoughts system - persistent memory affecting happiness
+  thoughts?: Thought[];
+  personality?: DwarfPersonality;
 }
 
 export interface Job {
@@ -159,6 +197,7 @@ export interface DwarfStatus {
   moodState?: MoodState;
   moodDemands?: string[];
   isLegendary?: boolean;
+  topThoughts?: string[];    // Top 3 strongest thoughts for UI display
 }
 
 // Crisis alerts for Claude visibility

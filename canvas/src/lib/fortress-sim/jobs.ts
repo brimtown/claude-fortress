@@ -1,6 +1,7 @@
 import type { Job, Dwarf, FortressState, Labor, Building } from "../../scenarios/fortress/types";
 import { createEvent } from "./events";
 import { MAP_WIDTH, MAP_HEIGHT } from "./map";
+import { hasThought } from "./thoughts";
 
 let nextJobId = 0;
 
@@ -152,9 +153,9 @@ export function isAtJobLocation(dwarf: Dwarf, job: Job): boolean {
  */
 export function workOnJob(state: FortressState, dwarf: Dwarf, job: Job): boolean {
   // Work rate: 12 progress per tick (~8 ticks to complete)
-  // Grief penalty: 50% slower while grieving
+  // Grief penalty: 50% slower while grieving (has witnessed_death thought)
   let progressRate = 12;
-  if (dwarf.griefTicks && dwarf.griefTicks > 0) {
+  if (hasThought(dwarf, "witnessed_death")) {
     progressRate = 6;
   }
   job.progress += progressRate;

@@ -42,11 +42,30 @@ function formatDwarfRow(d: DwarfStatus): string {
   const name = pad(truncate(d.name, 8), 8);
   const labor = pad(d.labor, 9);
   const pos = pad(formatPos(d.position), 5);
-  const hunger = padNum(d.hunger, 3);
-  const thirst = padNum(d.thirst, 3);
+  const hunger = padNum(Math.round(d.hunger), 3);
+  const thirst = padNum(Math.round(d.thirst), 3);
+  const happy = padNum(Math.round(d.happiness), 3);
   const task = d.currentTask ? truncate(d.currentTask, 10) : "idle";
 
-  return `| ${id} | ${name} | ${labor} | ${pos} | ${hunger}    | ${thirst}  | ${task} |`;
+  return `| ${id} | ${name} | ${labor} | ${pos} | ${hunger} | ${thirst} | ${happy} | ${task} |`;
+}
+
+// Format thoughts section for dwarves with notable thoughts
+function formatThoughtsSection(dwarves: DwarfStatus[]): string[] {
+  const lines: string[] = [];
+  const dwarvesWithThoughts = dwarves.filter(d => d.topThoughts && d.topThoughts.length > 0);
+
+  if (dwarvesWithThoughts.length === 0) return lines;
+
+  lines.push("## Thoughts");
+  for (const dwarf of dwarvesWithThoughts) {
+    const name = truncate(dwarf.name, 12);
+    const thoughts = dwarf.topThoughts!.join(", ");
+    lines.push(`- **${name}**: ${thoughts}`);
+  }
+  lines.push("");
+
+  return lines;
 }
 
 // Format event line
@@ -145,12 +164,15 @@ export function formatSummaryAsMarkdown(
   // Living dwarves table
   if (livingDwarves.length > 0) {
     lines.push("## Dwarves");
-    lines.push("| ID | Name     | Labor     | Pos   | Hunger | Thirst | Task       |");
-    lines.push("|----|----------|-----------|-------|--------|--------|------------|");
+    lines.push("| ID | Name     | Labor     | Pos   | Hunger | Thirst | Happy | Task       |");
+    lines.push("|----|----------|-----------|-------|--------|--------|-------|------------|");
     for (const dwarf of livingDwarves) {
       lines.push(formatDwarfRow(dwarf));
     }
     lines.push("");
+
+    // Add thoughts section after dwarves table
+    lines.push(...formatThoughtsSection(livingDwarves));
   }
 
   // Dead dwarves (compact list)

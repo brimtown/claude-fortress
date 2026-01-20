@@ -1,6 +1,6 @@
 ---
 title: Simulation UI
-date: 2026-01-18
+date: 2026-01-19
 status: implemented
 ---
 
@@ -21,9 +21,8 @@ Dwarves: 7/7  Happiness: Happy  Tick: 117
 │ Map (40x20)                              │  │ KEYS                       │
 │ - Alternating row shading                │  │ [a] announcements          │
 │ - ♣ for trees (green)                    │  │ [u] units  [b] buildings   │
-│ - ~ for water (cyan)                     │  │ [z] stocks [p] pause       │
-│ - # with gray bg = dig designation       │  │ [s] save   [d] debug       │
-│                                          │  │ [q] quit   [ESC] back      │
+│ - ~ for water (cyan)                     │  │ [z] stocks [d] debug       │
+│ - # with gray bg = dig designation       │  │ [Space] pause  [Esc] menu  │
 │                                          │  │                            │
 │                                          │  │ LEGEND                     │
 │                                          │  │ ☺○☹=Dwarf #=Wall           │
@@ -35,14 +34,20 @@ Dwarves: 7/7  Happiness: Happy  Tick: 117
 │ • Warning: Running low on drink!                                             │
 │ • Summer has arrived, Year 251                                               │
 │ • Rovod Brewmaster is dehydrated!                                            │
-│ • Urist McDigger completed digging                                           │
-│ • Kol Stonebeard assigned to mining                                          │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Modal Views
+## Keyboard Shortcuts
 
-### Keyboard Shortcuts
+### Global Keys
+
+| Key | Action | Notes |
+|-----|--------|-------|
+| `Space` | Pause/Resume | DF-style toggle |
+| `Esc` | Open menu / Back | Opens main menu from main view, closes modals |
+| `d` | Toggle debug | Shows debug logs |
+
+### View Shortcuts
 
 | Key | View | Toggle |
 |-----|------|--------|
@@ -50,11 +55,38 @@ Dwarves: 7/7  Happiness: Happy  Tick: 117
 | `u` | Units | Press again or ESC to close |
 | `b` | Buildings | Press again or ESC to close |
 | `z` | Stocks | Press again or ESC to close |
-| `p` | Pause/unpause | N/A |
-| `s` | Manual save | N/A |
-| `d` | Toggle debug logs | N/A |
-| `q` | Quit | N/A |
-| `ESC` | Return to main from any modal | N/A |
+
+### Menu Navigation
+
+| Key | Action |
+|-----|--------|
+| `↑/↓` | Navigate menu items |
+| `Enter` | Select item |
+| `1-4` | Quick select menu item |
+| `Esc` | Close menu (Resume) |
+
+### Removed Global Shortcuts
+
+The following are now only accessible via the Esc menu:
+- `q` - Quit (prevents accidental fortress abandonment)
+- `s` - Save (use menu or auto-save)
+
+---
+
+## Modal Views
+
+### Main Menu (`Esc`)
+
+```
+┌─ MENU ─────────────────────┐
+│ ► Resume                   │
+│   Settings                 │
+│   Save                     │
+│   Quit                     │
+└────────────────────────────┘
+```
+
+Navigation: `↑/↓` to select, `Enter` to activate, `Esc` to close.
 
 ### Announcements View (`a`)
 
@@ -66,11 +98,62 @@ Full scrollable event history with tick timestamps, color-coded by type:
 
 ### Units View (`u`)
 
-Dwarf roster table showing:
-- Name, Labor, Position, Task
-- H/T/E (Hunger/Thirst/Energy) as integers
-- Mood state indicators
-- Legendary status (★)
+Two-mode view: List and Detail.
+
+#### List Mode
+
+```
+┌─ UNITS ────────────────────────────────────────────────────────┐
+│ Dwarf Roster (7/7 alive)                                       │
+│    Name          Labor      Pos    Task           Happy        │
+│ ────────────────────────────────────────────────────────────── │
+│ ► Urist McDigger mining     12,5   digging         52          │
+│   Kol Stonebeard carpentry   8,3   idle            48          │
+│   Domas Ironhelm brewing     5,7   producing       61 ★        │
+│   ...                                                          │
+├────────────────────────────────────────────────────────────────┤
+│ ↑/↓ select | Enter details | [u] close | [Space] pause         │
+└────────────────────────────────────────────────────────────────┘
+```
+
+- Shows happiness instead of H/T/E (detailed needs in detail view)
+- `►` selector highlights current dwarf
+- `↑/↓` to navigate selection
+- `Enter` to view details
+- `★` indicates legendary status
+- `[mood]` badge for dwarves in strange moods
+
+#### Detail Mode
+
+```
+┌─ UNIT: Urist McDigger ─────────────────────────────────────────┐
+│ Alive | mining | Pos: 12,5 | ★ Legendary                       │
+│ ────────────────────────────────────────────────────────────── │
+│ Needs                                                          │
+│ Hunger:    ████████░░░░░░░░░░░░ 42                             │
+│ Thirst:    ██████████████░░░░░░ 68                             │
+│ Energy:    ██░░░░░░░░░░░░░░░░░░ 89                             │
+│ Happiness: ██████████░░░░░░░░░░ 52                             │
+│                                                                │
+│ Personality                                                    │
+│ Base Happiness: 54 | Resilience: 1.12 | Empathy: 0.89          │
+│                                                                │
+│ Thoughts (3)                                                   │
+│ • -30: witnessed Kol's death (x2)                              │
+│ • +15: quenched their thirst                                   │
+│ • +5: is well fed                                              │
+├────────────────────────────────────────────────────────────────┤
+│ ←/→ prev/next dwarf | Enter/Esc back to list | [u] close       │
+└────────────────────────────────────────────────────────────────┘
+```
+
+- Visual bars for all needs (color-coded: green/yellow/red)
+- Personality traits with color coding:
+  - Resilience: green if >1, red if <1
+  - Empathy: magenta if >1, blue if <1
+- Full list of active thoughts with modifiers
+- `←/→` to browse other dwarves without returning to list
+- `Enter` or `Esc` to return to list view
 
 ### Buildings View (`b`)
 
@@ -86,7 +169,15 @@ Resource bars and statistics:
 - Building list
 - Wealth, Peak Population, Artifacts, Mood statistics
 
-## Visual Improvements
+### Settings View
+
+Accessed via menu:
+- Color mode toggle (normal/colorblind)
+- `←/→` or `Enter` to toggle
+
+---
+
+## Visual Design
 
 ### Fortress Name
 
@@ -110,6 +201,13 @@ Resource bars and statistics:
 
 - Even rows use `dimColor` for depth perception
 
+### Selection Highlighting
+
+- Selected items use `inverse` attribute (white on colored background)
+- `►` selector character indicates current selection
+
+---
+
 ## Color Palette
 
 | Element | Color | Notes |
@@ -126,12 +224,21 @@ Resource bars and statistics:
 | Corpse | `red` | † |
 | Dig designation | `yellow` on `gray` bg | # |
 | Mood dwarf | `magenta` | M |
+| Happiness (high) | `green` | ≥50 |
+| Happiness (mid) | `yellow` | 30-49 |
+| Happiness (low) | `red` | <30 |
+| Positive thought | `green` | +modifier |
+| Negative thought | `red` | -modifier |
+
+---
 
 ## Event Log
 
 - Shows last 5 events at bottom of main view
 - Full history available in Announcements view
 - Production messages (still/farm) suppressed to reduce spam
+
+---
 
 ## Sidebar Layout
 
@@ -140,39 +247,30 @@ Keys at top, Legend below:
 2. Auto-save/Debug status indicators
 3. LEGEND section with colored symbols
 
-## Balance Tuning (Phase 1)
-
-### Needs Rates
-- Hunger: 0.3/tick (~330 ticks to starve)
-- Thirst: 0.5/tick (~200 ticks to dehydrate)
-
-### Mining Speed
-- 12 progress/tick (~8 ticks per tile)
-
-### Starting Resources
-- Wood: 20
-- Stone: 20
-- Food: 100
-- Drink: 15
-
-### Tantrum/Berserk
-- Tantrum threshold: happiness < 15 (was < 20)
-- Tantrum chance: 0.05%/tick (was 0.5%)
-- Strange mood frequency: 0.01%/tick (was 0.05%)
-- Mood deadline: 600 ticks (~5 min, was 200)
+---
 
 ## Files Modified
 
 | File | Changes |
 |------|---------|
-| `canvas/src/scenarios/fortress/types.ts` | Added `ViewMode` type with "buildings", `debug` config |
-| `canvas/src/canvases/fortress.tsx` | Modal system, keyboard handling, color updates, layout |
-| `canvas/src/canvases/fortress/colors.ts` | Shared color constants (new file) |
+| `canvas/src/scenarios/fortress/types.ts` | Added `ViewMode` type, `topThoughts` to DwarfStatus |
+| `canvas/src/canvases/fortress.tsx` | Modal system, keyboard handling, units view with detail mode |
+| `canvas/src/canvases/fortress/colors.ts` | Shared color constants |
 | `canvas/src/lib/fortress-sim/map.ts` | Tree character `♣` |
-| `canvas/src/lib/fortress-sim/save.ts` | Silent mode option |
-| `canvas/src/lib/fortress-sim/engine.ts` | Tantrum balance |
-| `canvas/src/lib/fortress-sim/dwarf.ts` | Needs rate balance |
-| `canvas/src/lib/fortress-sim/moods.ts` | Mood frequency/deadline balance |
-| `canvas/src/lib/fortress-sim/jobs.ts` | Mining speed, production message removal |
-| `canvas/src/lib/fortress-sim/resources.ts` | Starting drink lowered |
-| `canvas/src/lib/screenshot.ts` | Bright color variants, tree character |
+| `canvas/src/lib/fortress-sim/thoughts.ts` | getTopThoughts for UI display |
+
+---
+
+## Implementation Status
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Main menu (Esc) | ✅ Implemented | Resume/Settings/Save/Quit |
+| View modals | ✅ Implemented | a/u/b/z toggles |
+| Space to pause | ✅ Implemented | DF-style |
+| Units list view | ✅ Implemented | Selection, happiness display |
+| Units detail view | ✅ Implemented | Needs, personality, thoughts |
+| Detail navigation | ✅ Implemented | ←/→ to browse dwarves |
+| Safe quit | ✅ Implemented | Only via menu |
+| Color modes | ✅ Implemented | Normal/colorblind |
+| Auto-save | ✅ Implemented | On pause/quit |

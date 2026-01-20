@@ -8,8 +8,10 @@ import {
   getAverageHappiness,
   getDwarfMood,
   calculateWealth,
+  getGriefIntensity,
 } from "./dwarf";
 import { createInitialState } from "./engine";
+import { hasThought } from "./thoughts";
 import type { FortressState, Dwarf } from "../../scenarios/fortress/types";
 
 describe("createStartingDwarves", () => {
@@ -66,6 +68,26 @@ describe("createDwarf", () => {
     const dwarf2 = createDwarf(2, 2);
     expect(dwarf1.id).not.toBe(dwarf2.id);
   });
+
+  test("initializes with thoughts array", () => {
+    const dwarf = createDwarf(5, 5);
+    expect(dwarf.thoughts).toBeDefined();
+    expect(dwarf.thoughts).toEqual([]);
+  });
+
+  test("initializes with personality", () => {
+    const dwarf = createDwarf(5, 5);
+    expect(dwarf.personality).toBeDefined();
+    expect(dwarf.personality!.baseHappiness).toBeGreaterThanOrEqual(45);
+    expect(dwarf.personality!.baseHappiness).toBeLessThanOrEqual(64);
+    expect(dwarf.personality!.resilience).toBeGreaterThanOrEqual(0.7);
+    expect(dwarf.personality!.empathy).toBeGreaterThanOrEqual(0.7);
+  });
+
+  test("happiness starts at base happiness from personality", () => {
+    const dwarf = createDwarf(5, 5);
+    expect(dwarf.happiness).toBe(dwarf.personality!.baseHappiness);
+  });
 });
 
 describe("updateDwarfNeeds", () => {
@@ -87,9 +109,14 @@ describe("updateDwarfNeeds", () => {
     expect(dwarf.thirst).toBeGreaterThan(initialThirst);
   });
 
-  test("thirst increases faster than hunger", () => {
+  test("uses individual need rates for variation", () => {
+    // Set specific rates to verify they're used
+    dwarf.needRates = { hunger: 0.5, thirst: 0.3 };
+    dwarf.hunger = 0;
+    dwarf.thirst = 0;
     updateDwarfNeeds(dwarf);
-    expect(dwarf.thirst).toBeGreaterThan(dwarf.hunger);
+    expect(dwarf.hunger).toBeCloseTo(0.5, 5);
+    expect(dwarf.thirst).toBeCloseTo(0.3, 5);
   });
 
   test("caps hunger at 100", () => {
@@ -104,16 +131,35 @@ describe("updateDwarfNeeds", () => {
     expect(dwarf.thirst).toBe(100);
   });
 
-  test("high hunger decreases happiness", () => {
+  test("high hunger adds starving thought", () => {
     dwarf.hunger = 80;
-    updateDwarfNeeds(dwarf);
-    expect(dwarf.happiness).toBeLessThan(50);
+    updateDwarfNeeds(dwarf, 1, 100);
+    expect(hasThought(dwarf, "starving")).toBe(true);
+    expect(dwarf.happiness).toBeLessThan(dwarf.personality!.baseHappiness);
   });
 
-  test("high thirst decreases happiness", () => {
+  test("high thirst adds dehydrated thought", () => {
     dwarf.thirst = 80;
-    updateDwarfNeeds(dwarf);
-    expect(dwarf.happiness).toBeLessThan(50);
+    updateDwarfNeeds(dwarf, 1, 100);
+    expect(hasThought(dwarf, "dehydrated")).toBe(true);
+    expect(dwarf.happiness).toBeLessThan(dwarf.personality!.baseHappiness);
+  });
+
+  test("low hunger adds well_fed thought", () => {
+    dwarf.hunger = 20;
+    dwarf.thirst = 20;
+    updateDwarfNeeds(dwarf, 1, 100);
+    expect(hasThought(dwarf, "well_fed")).toBe(true);
+    expect(dwarf.happiness).toBeGreaterThan(dwarf.personality!.baseHappiness);
+  });
+
+  test("low energy adds exhausted thought", () => {
+    dwarf.energy = 15;
+    dwarf.hunger = 50; // Middle value to avoid well_fed/starving
+    dwarf.thirst = 50; // Middle value to avoid well_hydrated/dehydrated
+    updateDwarfNeeds(dwarf, 1, 100);
+    expect(hasThought(dwarf, "exhausted")).toBe(true);
+    expect(dwarf.happiness).toBeLessThan(dwarf.personality!.baseHappiness);
   });
 });
 
@@ -162,7 +208,7 @@ describe("killDwarf", () => {
     expect(state.statistics.deathsByDehydration).toBe(initial + 1);
   });
 
-  test("applies grief to surviving dwarves", () => {
+  test("applies grief to surviving dwarves via witnessed_death thought", () => {
     const victim = state.dwarves[0]!;
     const survivor = state.dwarves[1]!;
     const initialHappiness = survivor.happiness;
@@ -170,7 +216,19 @@ describe("killDwarf", () => {
     killDwarf(state, victim, "starvation");
 
     expect(survivor.happiness).toBeLessThan(initialHappiness);
-    expect(survivor.griefTicks).toBeGreaterThan(0);
+    expect(hasThought(survivor, "witnessed_death")).toBe(true);
+    expect(getGriefIntensity(survivor)).toBe(1);
+  });
+
+  test("multiple deaths stack witnessed_death thoughts", () => {
+    const victim1 = state.dwarves[0]!;
+    const victim2 = state.dwarves[1]!;
+    const survivor = state.dwarves[2]!;
+
+    killDwarf(state, victim1, "starvation");
+    killDwarf(state, victim2, "dehydration");
+
+    expect(getGriefIntensity(survivor)).toBe(2);
   });
 
   test("does not kill already dead dwarf", () => {
@@ -209,6 +267,10 @@ describe("getLivingDwarfCount", () => {
 describe("getAverageHappiness", () => {
   test("calculates average of living dwarves", () => {
     const dwarves = createStartingDwarves();
+    // Set all to known happiness for testing
+    for (const d of dwarves) {
+      d.happiness = 50;
+    }
     dwarves[0]!.happiness = 100;
     dwarves[1]!.happiness = 50;
     dwarves[2]!.happiness = 0;
@@ -219,6 +281,10 @@ describe("getAverageHappiness", () => {
 
   test("excludes dead dwarves from calculation", () => {
     const dwarves = createStartingDwarves();
+    // Set all to known happiness for testing
+    for (const d of dwarves) {
+      d.happiness = 50;
+    }
     dwarves[0]!.happiness = 100;
     dwarves[0]!.alive = false;
 

@@ -1,5 +1,14 @@
 import type { Dwarf, Labor, DeathCause, FortressState } from "../../scenarios/fortress/types";
 import { createEvent, EventMessages } from "./events";
+import {
+  generatePersonality,
+  addThought,
+  removeConditionThought,
+  hasThought,
+  decayThoughts,
+  calculateHappiness,
+  getThoughtIntensity,
+} from "./thoughts";
 
 const FIRST_NAMES = [
   "Urist", "Kol", "Domas", "Rigoth", "Sigun", "Kulet", "Zasit",
@@ -27,17 +36,26 @@ export function generateDwarfName(): string {
  * Create a new dwarf with default stats
  */
 export function createDwarf(x: number, y: number, labor?: Labor): Dwarf {
+  const personality = generatePersonality();
   return {
     id: nextDwarfId++,
     name: generateDwarfName(),
     x,
     y,
-    hunger: 0,
-    thirst: 0,
-    energy: 100,
+    hunger: Math.random() * 20,           // Start with slight variation (0-20)
+    thirst: Math.random() * 20,           // Start with slight variation (0-20)
+    energy: 80 + Math.random() * 20,      // Start with slight variation (80-100)
     labor: labor || "hauling",
-    happiness: 50,
+    happiness: personality.baseHappiness, // Start at base happiness from personality
     alive: true,
+    // Individual metabolism - creates natural variation in when dwarves need resources
+    needRates: {
+      hunger: 0.3 + Math.random() * 0.2,  // 0.3-0.5 (base 0.4)
+      thirst: 0.5 + Math.random() * 0.4,  // 0.5-0.9 (base 0.7)
+    },
+    // Thoughts system
+    thoughts: [],
+    personality,
   };
 }
 
@@ -61,11 +79,14 @@ export function createStartingDwarves(): Dwarf[] {
 
 /**
  * Update dwarf needs over time
+ * Now uses the thoughts system for persistent, decaying happiness modifiers
  */
-export function updateDwarfNeeds(dwarf: Dwarf, delta: number = 1): void {
-  // Increase hunger and thirst over time (slower rates for better gameplay)
-  dwarf.hunger = Math.min(100, dwarf.hunger + delta * 0.3);  // ~330 ticks to starve (was 0.5)
-  dwarf.thirst = Math.min(100, dwarf.thirst + delta * 0.5);  // ~200 ticks to dehydrate (was 1.0)
+export function updateDwarfNeeds(dwarf: Dwarf, delta: number = 1, currentTick: number = 0): void {
+  // Increase hunger and thirst over time using individual rates
+  const hungerRate = dwarf.needRates?.hunger ?? 0.4;
+  const thirstRate = dwarf.needRates?.thirst ?? 0.7;
+  dwarf.hunger = Math.min(100, dwarf.hunger + delta * hungerRate);
+  dwarf.thirst = Math.min(100, dwarf.thirst + delta * thirstRate);
 
   // Decrease energy if working
   if (dwarf.currentTask) {
@@ -75,24 +96,53 @@ export function updateDwarfNeeds(dwarf: Dwarf, delta: number = 1): void {
     dwarf.energy = Math.min(100, dwarf.energy + delta * 0.5);
   }
 
-  // Happiness affected by needs
-  let happiness = 50; // Base happiness
+  // Decay expired thoughts
+  decayThoughts(dwarf, currentTick);
 
-  if (dwarf.hunger > 70) happiness -= 20;
-  else if (dwarf.hunger < 30) happiness += 10;
-
-  if (dwarf.thirst > 70) happiness -= 25;
-  else if (dwarf.thirst < 30) happiness += 10;
-
-  if (dwarf.energy < 20) happiness -= 15;
-  else if (dwarf.energy > 80) happiness += 5;
-
-  // Grief penalty - significant while grieving
-  if (dwarf.griefTicks && dwarf.griefTicks > 0) {
-    happiness -= 25;
+  // Update condition-based thoughts based on current needs
+  // Hunger thoughts
+  if (dwarf.hunger > 70) {
+    if (!hasThought(dwarf, "starving")) {
+      addThought(dwarf, currentTick, "starving");
+    }
+    removeConditionThought(dwarf, "well_fed");
+  } else if (dwarf.hunger < 30) {
+    if (!hasThought(dwarf, "well_fed")) {
+      addThought(dwarf, currentTick, "well_fed");
+    }
+    removeConditionThought(dwarf, "starving");
+  } else {
+    removeConditionThought(dwarf, "starving");
+    removeConditionThought(dwarf, "well_fed");
   }
 
-  dwarf.happiness = Math.max(0, Math.min(100, happiness));
+  // Thirst thoughts
+  if (dwarf.thirst > 70) {
+    if (!hasThought(dwarf, "dehydrated")) {
+      addThought(dwarf, currentTick, "dehydrated");
+    }
+    removeConditionThought(dwarf, "well_hydrated");
+  } else if (dwarf.thirst < 30) {
+    if (!hasThought(dwarf, "well_hydrated")) {
+      addThought(dwarf, currentTick, "well_hydrated");
+    }
+    removeConditionThought(dwarf, "dehydrated");
+  } else {
+    removeConditionThought(dwarf, "dehydrated");
+    removeConditionThought(dwarf, "well_hydrated");
+  }
+
+  // Energy thoughts
+  if (dwarf.energy < 20) {
+    if (!hasThought(dwarf, "exhausted")) {
+      addThought(dwarf, currentTick, "exhausted");
+    }
+  } else {
+    removeConditionThought(dwarf, "exhausted");
+  }
+
+  // Calculate happiness from personality + thoughts
+  dwarf.happiness = calculateHappiness(dwarf);
 }
 
 /**
@@ -183,18 +233,27 @@ export function getLivingDwarfCount(dwarves: Dwarf[]): number {
 
 /**
  * Apply grief to all living dwarves when someone dies
- * Part of the tantrum spiral mechanic
+ * Part of the tantrum spiral mechanic - now uses thoughts system
  */
 export function applyGrief(state: FortressState, deadDwarf: Dwarf): void {
   const livingDwarves = state.dwarves.filter(d => d.alive && d.id !== deadDwarf.id);
 
   for (const dwarf of livingDwarves) {
-    // Base grief: -15 to -25 happiness
-    const griefAmount = 15 + Math.floor(Math.random() * 11);
-    dwarf.happiness = Math.max(0, dwarf.happiness - griefAmount);
-    // Add to grief duration (stacks with existing grief)
-    dwarf.griefTicks = (dwarf.griefTicks || 0) + 200;
+    // Apply empathy modifier to grief intensity
+    // Higher empathy = feels grief more strongly (but we add the same thought, it stacks)
+    addThought(dwarf, state.tick, "witnessed_death", `witnessed ${deadDwarf.name}'s death`);
+
+    // Immediately recalculate happiness
+    dwarf.happiness = calculateHappiness(dwarf);
   }
+}
+
+/**
+ * Get grief intensity for tantrum calculations
+ * Returns the number of stacked witnessed_death thoughts
+ */
+export function getGriefIntensity(dwarf: Dwarf): number {
+  return getThoughtIntensity(dwarf, "witnessed_death");
 }
 
 /**

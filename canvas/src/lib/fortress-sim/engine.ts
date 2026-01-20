@@ -9,7 +9,8 @@ import type {
   Labor,
 } from "../../scenarios/fortress/types";
 import { generateMap, MAP_WIDTH, MAP_HEIGHT } from "./map";
-import { createStartingDwarves, updateDwarfNeeds, createDwarf, killDwarf, getLivingDwarfCount, calculateWealth, getRecentDeathCount } from "./dwarf";
+import { createStartingDwarves, updateDwarfNeeds, createDwarf, killDwarf, getLivingDwarfCount, calculateWealth, getRecentDeathCount, getGriefIntensity } from "./dwarf";
+import { addThought, calculateHappiness } from "./thoughts";
 import {
   createStartingResources,
   consumeResources,
@@ -85,12 +86,17 @@ export function processTick(state: FortressState): void {
     // Skip dead dwarves
     if (!dwarf.alive) continue;
 
-    updateDwarfNeeds(dwarf);
+    updateDwarfNeeds(dwarf, 1, state.tick);
 
     // Handle critical needs - STARVATION
     if (dwarf.hunger > 90) {
       // Try to eat
       if (state.resources.food > 0) {
+        // Add thought for eating while very hungry
+        if (dwarf.hunger > 80) {
+          addThought(dwarf, state.tick, "ate_while_starving");
+          dwarf.happiness = calculateHappiness(dwarf);
+        }
         state.resources.food--;
         dwarf.hunger = 0;
         dwarf.starvationTicks = 0; // Reset counter
@@ -119,6 +125,11 @@ export function processTick(state: FortressState): void {
     if (dwarf.thirst > 90) {
       // Try to drink
       if (state.resources.drink > 0) {
+        // Add thought for drinking while very thirsty
+        if (dwarf.thirst > 80) {
+          addThought(dwarf, state.tick, "drank_while_parched");
+          dwarf.happiness = calculateHappiness(dwarf);
+        }
         state.resources.drink--;
         dwarf.thirst = 0;
         dwarf.dehydrationTicks = 0; // Reset counter
@@ -143,16 +154,27 @@ export function processTick(state: FortressState): void {
       dwarf.dehydrationTicks = 0; // Reset if no longer dehydrated
     }
 
-    // Grief recovery - countdown grief ticks
-    if (dwarf.griefTicks && dwarf.griefTicks > 0) {
-      dwarf.griefTicks--;
-    }
-
     // Tantrum check - very unhappy dwarves can snap
+    // Grief dramatically increases berserk chance (death cascades are real)
+    // Grief intensity from witnessed_death thoughts stacks, multiplying tantrum risk
     const moodState = dwarf.moodState || "normal";
-    if (dwarf.happiness < 15 && moodState === "normal") {
-      // 0.05% chance per tick to snap when very unhappy (was 0.5% - way too high)
-      if (Math.random() < 0.0005) {
+    if (moodState === "normal") {
+      const griefIntensity = getGriefIntensity(dwarf);  // Stacked witnessed_death thoughts
+      const baseTantrumChance = griefIntensity > 0 ? 0.008 : 0.001;  // 0.8% when grieving
+      const tantrumChance = baseTantrumChance * Math.max(1, griefIntensity);  // Stacks!
+      const tantrumThreshold = griefIntensity > 0 ? 30 : 15;
+
+      if (dwarf.happiness < tantrumThreshold && Math.random() < tantrumChance) {
+        // Apply witnessed_tantrum to nearby dwarves before the tantrum
+        const nearbyDwarves = state.dwarves.filter(d =>
+          d.alive && d.id !== dwarf.id &&
+          Math.abs(d.x - dwarf.x) <= 5 && Math.abs(d.y - dwarf.y) <= 5
+        );
+        for (const nearby of nearbyDwarves) {
+          addThought(nearby, state.tick, "witnessed_tantrum", `witnessed ${dwarf.name}'s breakdown`);
+          nearby.happiness = calculateHappiness(nearby);
+        }
+
         if (Math.random() < 0.5) {
           dwarf.moodState = "berserk";
           dwarf.currentTask = "BERSERK!";
