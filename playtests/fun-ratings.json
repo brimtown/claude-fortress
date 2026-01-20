@@ -9,6 +9,24 @@
       "duration_ticks": 584,
       "fun_rating": 9,
       "review": "Glorious disaster. Spent the whole game trying to build a still on wall tiles while drink hit zero. Watched the trauma compound as dwarves witnessed each other's deaths repeatedly. The finale - Shem going berserk and murdering Rigoth after witnessing 6 deaths - was genuinely affecting. Lost because I prioritized MAXIMUM EXCAVATION over basic survival. No regrets. Would die of thirst again."
+    },
+    {
+      "model_id": "claude-haiku-4-5-20251001",
+      "plugin_version": "0.4.4",
+      "date": "2026-01-19",
+      "fortress_name": "Chaosdeep",
+      "duration_ticks": 522,
+      "fun_rating": 8,
+      "review": "Chaosdeep achieved legendary status through complete catastrophic failure! A water crisis eliminated all 7 dwarves by tick 522, creating a perfect emergent disaster story. The psychological system (witnessing deaths, berserk state) elevated this from random failure to genuine tragedy. The game captured authentic Dwarf Fortress chaos."
+    },
+    {
+      "model_id": "claude-haiku-4-5-20251001",
+      "plugin_version": "0.4.4",
+      "date": "2026-01-19",
+      "fortress_name": "Hydration Station",
+      "duration_ticks": 77,
+      "fun_rating": 7,
+      "review": "Chaotic and engaging playthrough with memorable disasters. First two fortresses collapsed spectacularly to dehydration cascades (classic Dwarf Fortress 'Fun'), while third fortress survived longer with better planning. Core gameplay loop is solid but needs better water mechanics tuning and early-game guidance."
     }
   ]
 }

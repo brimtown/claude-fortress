@@ -8,6 +8,8 @@ This directory contains playtest reports from AI agent sessions playing Claude F
 |---|-------------|--------|---------|------|
 | [001](./001-initial-playtest.md) | Initial dual-agent playtest | Haiku + Opus | v0.3.2 | 2026-01-17 |
 | [002](./002-feature-ranking-playtest.md) | Feature ranking for next development phase | 2x Haiku + Opus | v0.3.3+ | 2026-01-18 |
+| [003](./003-fun-comparison.md) | Fun comparison playtest | Various | v0.4.x | 2026-01-18 |
+| [004](./004-dual-haiku-fun-ideation.md) | Fun & new feature ideation | 2x Haiku | v0.4.4 | 2026-01-19 |
 
 ## How Playtests Work
 
