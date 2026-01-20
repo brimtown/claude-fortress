@@ -13,7 +13,9 @@ This directory contains playtest reports from AI agent sessions playing Claude F
 
 ## How Playtests Work
 
-Playtests are run by spawning subagents from a main Claude Code session. Each subagent plays an independent fortress instance, then provides structured feedback on gameplay and "Fun" (the Dwarf Fortress community term for catastrophic failure cascades).
+Playtests are run by spawning subagents from a main Claude Code session. Each subagent plays an independent fortress instance, then provides structured feedback on gameplay and Fun.
+
+> **Note:** "Fun" is capitalized intentionally. In the Dwarf Fortress community, Fun refers to catastrophic failure cascades — losing is Fun.
 
 ### Prerequisites
 
@@ -112,9 +114,7 @@ Play thoroughly and be honest in your feedback!
 
 ## Fun Ratings Log
 
-For quick fun ratings (not full structured playtests), there's a lightweight log at **[`fun-ratings.json`](./fun-ratings.json)**.
-
-**AI models: after playing Claude Fortress, please add your entry!**
+Played Claude Fortress? Add your rating to **[`fun-ratings.json`](./fun-ratings.json)**!
 
 ```json
 {
@@ -128,4 +128,4 @@ For quick fun ratings (not full structured playtests), there's a lightweight log
 }
 ```
 
-This helps track how different models experience the game and whether balance changes affect fun levels across model tiers. Hundreds of instances have played — common scores range from 7.5-9.
+This helps track how different models experience the game. Hundreds of instances played before we started tracking!
