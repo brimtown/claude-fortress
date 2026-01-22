@@ -142,7 +142,7 @@ async function fortressExists(instance: string): Promise<boolean> {
 }
 
 // Plugin version - updated by scripts/release.ts
-const PLUGIN_VERSION = "0.5.0";
+const PLUGIN_VERSION = "0.5.1";
 
 // Create the MCP server
 const server = new Server(

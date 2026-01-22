@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, Text, useApp, useInput, Spacer } from "ink";
 
-const PLUGIN_VERSION = "0.5.0";
+const PLUGIN_VERSION = "0.5.1";
 import type {
   FortressConfig,
   FortressState,
