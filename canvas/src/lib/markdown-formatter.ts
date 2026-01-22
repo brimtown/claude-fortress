@@ -130,6 +130,16 @@ export function formatSummaryAsMarkdown(
   lines.push(`Total: ${summary.dwarfCount} | Alive: ${summary.aliveCount}`);
   lines.push("");
 
+  // Items on ground (awaiting haul)
+  if (summary.items && (summary.items.stone > 0 || summary.items.log > 0)) {
+    lines.push("## Items on Ground");
+    const itemParts: string[] = [];
+    if (summary.items.stone > 0) itemParts.push(`Stone: ${summary.items.stone}`);
+    if (summary.items.log > 0) itemParts.push(`Logs: ${summary.items.log}`);
+    lines.push(itemParts.join(" | "));
+    lines.push("");
+  }
+
   // Job queue breakdown
   lines.push("## Jobs");
   const j = summary.jobs;
@@ -140,7 +150,9 @@ export function formatSummaryAsMarkdown(
       : `Dig: ${j.byType.dig}`;
     jobParts.push(digInfo);
   }
+  if (j.byType.chop > 0) jobParts.push(`Chop: ${j.byType.chop}`);
   if (j.byType.build > 0) jobParts.push(`Build: ${j.byType.build}`);
+  if (j.byType.haul > 0) jobParts.push(`Haul: ${j.byType.haul}`);
   if (j.byType.produce > 0) jobParts.push(`Produce: ${j.byType.produce}`);
 
   if (jobParts.length > 0) {

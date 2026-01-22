@@ -13,6 +13,7 @@ import type { Dwarf, FortressState, MoodState, Building } from "../../scenarios/
 import { createEvent, EventMessages } from "./events";
 import { killDwarf } from "./dwarf";
 import { addThought, calculateHappiness } from "./thoughts";
+import { cancelJob } from "./jobs";
 
 // Artifact name components for generating legendary item names
 const ARTIFACT_PREFIXES = [
@@ -158,11 +159,8 @@ export function triggerStrangeMood(state: FortressState, dwarf: Dwarf): boolean 
   workshop.claimedByDwarfId = dwarf.id;
   workshop.claimedAtTick = state.tick;
 
-  // Cancel any current job
-  if (dwarf.currentJob) {
-    dwarf.currentJob.assignedDwarfId = undefined;
-    dwarf.currentJob = undefined;
-  }
+  // Cancel any current job (drops carried items if hauling)
+  cancelJob(dwarf, state);
   dwarf.currentTask = "strange mood!";
 
   // Update statistics

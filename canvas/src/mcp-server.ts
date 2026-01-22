@@ -14,7 +14,7 @@ import {
 import { spawnCanvas } from "./terminal";
 import { getSocketPath } from "./ipc/types";
 import { detectPlatform } from "./platform";
-import type { FortressCommand, Labor } from "./scenarios/fortress/types";
+import type { FortressCommand, Labor, DesignationType } from "./scenarios/fortress/types";
 import { hasSave, getAllSaveMetadata, deleteSave } from "./lib/fortress-sim/save";
 
 // Check if a socket/pipe is ready (cross-platform)
@@ -202,9 +202,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "dig",
+        name: "designate",
         description:
-          "Designate an area for mining. Dwarves with mining labor will excavate the tiles.",
+          "Designate an area for work. Use 'dig' for mining walls (requires mining labor) or 'chop' for felling trees (requires woodcutting labor).",
         inputSchema: {
           type: "object" as const,
           properties: {
@@ -212,6 +212,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description: 'Fortress instance ID (returned by embark, default: "fortress-1")',
               default: "fortress-1",
+            },
+            designation: {
+              type: "string",
+              enum: ["dig", "chop"],
+              description: "Type of designation: 'dig' for mining walls, 'chop' for felling trees",
             },
             x: {
               type: "number",
@@ -223,14 +228,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             width: {
               type: "number",
-              description: "Width of area to dig",
+              description: "Width of area to designate",
             },
             height: {
               type: "number",
-              description: "Height of area to dig",
+              description: "Height of area to designate",
             },
           },
-          required: ["x", "y", "width", "height"],
+          required: ["designation", "x", "y", "width", "height"],
         },
       },
       {
@@ -285,7 +290,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             labor: {
               type: "string",
-              enum: ["mining", "carpentry", "brewing", "farming", "hauling"],
+              enum: ["mining", "woodcutting", "carpentry", "brewing", "farming", "hauling"],
               description: "Labor type to assign",
             },
           },
@@ -557,7 +562,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case "dig": {
+      case "designate": {
         const instance = (args?.instance as string) || "fortress-1";
         const socketPath = getSocketPath(instance);
 
@@ -573,6 +578,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
+        const designation = args?.designation as string;
         const x = args?.x as number;
         const y = args?.y as number;
         const width = args?.width as number;
@@ -580,6 +586,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         // Validate inputs
         const errors: string[] = [];
+        if (!designation || !["dig", "chop"].includes(designation)) {
+          errors.push(`designation must be 'dig' or 'chop' (got ${designation})`);
+        }
         if (typeof x !== "number" || x < 0 || x >= 40) {
           errors.push(`x must be 0-39 (got ${x})`);
         }
@@ -597,7 +606,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             content: [
               {
                 type: "text" as const,
-                text: `Invalid dig parameters: ${errors.join(", ")}`,
+                text: `Invalid designate parameters: ${errors.join(", ")}`,
               },
             ],
             isError: true,
@@ -605,16 +614,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         await sendCommand(socketPath, {
-          type: "dig",
+          type: "designate",
+          designation: designation as DesignationType,
           area: { x, y, width, height },
         });
 
         const tiles = width * height;
+        const action = designation === "dig" ? "mining" : "chopping";
         return {
           content: [
             {
               type: "text" as const,
-              text: `Designated ${tiles} tiles for mining at (${x}, ${y}) with dimensions ${width}x${height}.`,
+              text: `Designated ${tiles} tiles for ${action} at (${x}, ${y}) with dimensions ${width}x${height}.`,
             },
           ],
         };
@@ -711,7 +722,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (typeof dwarfId !== "number" || dwarfId < 0) {
           errors.push(`dwarf_id must be a non-negative number (got ${dwarfId})`);
         }
-        const validLabors: Labor[] = ["mining", "carpentry", "brewing", "farming", "hauling"];
+        const validLabors: Labor[] = ["mining", "woodcutting", "carpentry", "brewing", "farming", "hauling"];
         if (!validLabors.includes(labor)) {
           errors.push(`labor must be one of: ${validLabors.join(", ")}`);
         }

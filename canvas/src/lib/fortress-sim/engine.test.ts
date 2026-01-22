@@ -22,10 +22,11 @@ describe("createInitialState", () => {
     const labors = state.dwarves.map((d) => d.labor);
 
     expect(labors.filter((l) => l === "mining").length).toBe(2);
+    expect(labors.filter((l) => l === "woodcutting").length).toBe(1);
     expect(labors.filter((l) => l === "carpentry").length).toBe(1);
     expect(labors.filter((l) => l === "brewing").length).toBe(1);
     expect(labors.filter((l) => l === "farming").length).toBe(1);
-    expect(labors.filter((l) => l === "hauling").length).toBe(2);
+    expect(labors.filter((l) => l === "hauling").length).toBe(1);
   });
 
   test("uses seed for deterministic map generation", () => {
@@ -118,12 +119,13 @@ describe("handleCommand", () => {
     expect(state.paused).toBe(false);
   });
 
-  test("dig command creates jobs for wall tiles", () => {
+  test("designate dig command creates jobs for wall tiles", () => {
     const initialJobs = state.jobs.length;
 
     // Dig in an area with walls (right side of map)
     handleCommand(state, {
-      type: "dig",
+      type: "designate",
+      designation: "dig",
       area: { x: 15, y: 5, width: 3, height: 3 },
     });
 
@@ -131,10 +133,11 @@ describe("handleCommand", () => {
     expect(state.jobs.some((j) => j.type === "dig")).toBe(true);
   });
 
-  test("dig command does not create jobs for floor tiles", () => {
+  test("designate dig command does not create jobs for floor tiles", () => {
     // Starting area is already dug (floor)
     const result = handleCommand(state, {
-      type: "dig",
+      type: "designate",
+      designation: "dig",
       area: { x: 2, y: 2, width: 3, height: 3 },
     });
 

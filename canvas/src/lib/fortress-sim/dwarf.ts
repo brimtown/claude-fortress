@@ -65,7 +65,7 @@ export function createDwarf(x: number, y: number, labor?: Labor): Dwarf {
  */
 export function createStartingDwarves(): Dwarf[] {
   const dwarves: Dwarf[] = [];
-  const labors: Labor[] = ["mining", "mining", "carpentry", "brewing", "farming", "hauling", "hauling"];
+  const labors: Labor[] = ["mining", "mining", "woodcutting", "carpentry", "brewing", "farming", "hauling"];
 
   for (let i = 0; i < 7; i++) {
     // Place them in the upper outdoor area (grass), where outdoor is widest
@@ -196,6 +196,18 @@ export function killDwarf(
     dwarf.currentJob.assignedDwarfId = undefined;
     dwarf.currentJob = undefined;
     dwarf.currentTask = undefined;
+  }
+
+  // Drop carried item if hauling
+  if (dwarf.carriedItem !== undefined) {
+    const item = state.items.find(i => i.id === dwarf.carriedItem);
+    if (item) {
+      // Item drops at dwarf's death location
+      item.x = dwarf.x;
+      item.y = dwarf.y;
+      item.carriedBy = undefined;
+    }
+    dwarf.carriedItem = undefined;
   }
 
   // Update statistics

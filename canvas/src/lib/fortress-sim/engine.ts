@@ -7,6 +7,8 @@ import type {
   Season,
   Tile,
   Labor,
+  DesignationType,
+  Item,
 } from "../../scenarios/fortress/types";
 import { generateMap, MAP_WIDTH, MAP_HEIGHT } from "./map";
 import { createStartingDwarves, updateDwarfNeeds, createDwarf, killDwarf, getLivingDwarfCount, calculateWealth, getRecentDeathCount, getGriefIntensity } from "./dwarf";
@@ -20,7 +22,7 @@ import {
 } from "./resources";
 import { createEvent, trimEvents, EventMessages } from "./events";
 import { updateAllDwarfMovement } from "./movement";
-import { updateJobs, createDigJob, createBuildJob, createProductionJob } from "./jobs";
+import { updateJobs, createDigJob, createChopJob, createHaulJob, createBuildJob, createProductionJob, cancelJob } from "./jobs";
 import { updateMoods } from "./moods";
 
 let nextBuildingId = 0;
@@ -53,6 +55,7 @@ export function createInitialState(fortressName: string, seed?: number): Fortres
     resources: createStartingResources(),
     buildings: [],
     jobs: [],
+    items: [],
     events: [
       createEvent(0, `Welcome to ${fortressName}!`, "success"),
       createEvent(0, "The fortress is established. Strike the earth!", "info"),
@@ -77,6 +80,9 @@ export function processTick(state: FortressState): void {
 
   // Update job assignments and work progress
   updateJobs(state);
+
+  // Create haul jobs for items on the ground
+  createHaulJobsForItems(state);
 
   // Update dwarf movement (paths to jobs, wanders when idle)
   updateAllDwarfMovement(state);
@@ -227,7 +233,7 @@ export function processTick(state: FortressState): void {
       }
 
       if (migrantCount > 0) {
-        const labors: Labor[] = ["mining", "carpentry", "brewing", "farming", "hauling"];
+        const labors: Labor[] = ["mining", "woodcutting", "carpentry", "brewing", "farming", "hauling"];
         for (let i = 0; i < migrantCount; i++) {
           const labor = labors[Math.floor(Math.random() * labors.length)];
           const newDwarf = createDwarf(5, 3, labor);
@@ -321,8 +327,8 @@ export function processTick(state: FortressState): void {
  */
 export function handleCommand(state: FortressState, command: FortressCommand): boolean {
   switch (command.type) {
-    case "dig":
-      return handleDigCommand(state, command.area);
+    case "designate":
+      return handleDesignateCommand(state, command.designation, command.area);
 
     case "build":
       return handleBuildCommand(
@@ -360,20 +366,24 @@ export function handleCommand(state: FortressState, command: FortressCommand): b
 }
 
 /**
- * Handle dig command - designate area for mining (creates jobs for miners)
+ * Handle designate command - unified designation for dig/chop
  *
- * Strategy: Create jobs for ALL wall tiles in the area (like real DF).
+ * Strategy: Create jobs for ALL valid tiles in the area (like real DF).
  * The job assignment system will handle accessibility - dwarves will only
- * work on tiles adjacent to existing floors, and as they dig, more tiles
+ * work on tiles adjacent to existing floors, and as they work, more tiles
  * become accessible naturally.
  */
-function handleDigCommand(
+function handleDesignateCommand(
   state: FortressState,
+  designation: DesignationType,
   area: { x: number; y: number; width: number; height: number }
 ): boolean {
   let jobsCreated = 0;
-  let wallsFound = 0;
+  let validTilesFound = 0;
   let alreadyDesignated = 0;
+
+  const targetTileType = designation === "dig" ? "wall" : "tree";
+  const jobType = designation === "dig" ? "dig" : "chop";
 
   for (let dy = 0; dy < area.height; dy++) {
     for (let dx = 0; dx < area.width; dx++) {
@@ -388,30 +398,38 @@ function handleDigCommand(
       const tile = row[x];
       if (!tile) continue;
 
-      // Count wall tiles for better feedback
-      if (tile.type === "wall") {
-        wallsFound++;
+      // Check if this tile matches the designation type
+      if (tile.type === targetTileType) {
+        validTilesFound++;
 
-        // Create job for any undesignated wall tile
-        if (!tile.dug) {
-          const existingJob = state.jobs.find(j => j.type === "dig" && j.x === x && j.y === y);
-          if (!existingJob) {
+        // For dig, skip already-dug tiles
+        if (designation === "dig" && tile.dug) continue;
+
+        // Check for existing job
+        const existingJob = state.jobs.find(j => j.type === jobType && j.x === x && j.y === y);
+        if (!existingJob) {
+          if (designation === "dig") {
             state.jobs.push(createDigJob(x, y));
-            jobsCreated++;
           } else {
-            alreadyDesignated++;
+            state.jobs.push(createChopJob(x, y));
           }
+          jobsCreated++;
+        } else {
+          alreadyDesignated++;
         }
       }
     }
   }
 
   // Provide helpful feedback
+  const actionVerb = designation === "dig" ? "mining" : "chopping";
+  const targetName = designation === "dig" ? "walls" : "trees";
+
   if (jobsCreated > 0) {
     state.events.push(
       createEvent(
         state.tick,
-        `Designated ${jobsCreated} tiles for mining`,
+        `Designated ${jobsCreated} ${jobsCreated === 1 ? "tile" : "tiles"} for ${actionVerb}`,
         "info"
       )
     );
@@ -420,16 +438,16 @@ function handleDigCommand(
     state.events.push(
       createEvent(
         state.tick,
-        `${alreadyDesignated} tiles already designated`,
+        `${alreadyDesignated} ${alreadyDesignated === 1 ? "tile" : "tiles"} already designated`,
         "info"
       )
     );
     return true;
-  } else if (wallsFound === 0) {
+  } else if (validTilesFound === 0) {
     state.events.push(
       createEvent(
         state.tick,
-        `No diggable walls in that area (already dug or invalid terrain)`,
+        `No ${targetName} in that area`,
         "warning"
       )
     );
@@ -440,7 +458,7 @@ function handleDigCommand(
 }
 
 /**
- * Handle cancel command - remove dig designations from an area
+ * Handle cancel command - remove dig/chop designations from an area
  */
 function handleCancelCommand(
   state: FortressState,
@@ -455,9 +473,9 @@ function handleCancelCommand(
 
       if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) continue;
 
-      // Find and remove unassigned dig jobs at this location
+      // Find and remove unassigned dig or chop jobs at this location
       const jobIndex = state.jobs.findIndex(
-        (j) => j.type === "dig" && j.x === x && j.y === y && !j.assignedDwarfId
+        (j) => (j.type === "dig" || j.type === "chop") && j.x === x && j.y === y && !j.assignedDwarfId
       );
 
       if (jobIndex !== -1) {
@@ -469,12 +487,12 @@ function handleCancelCommand(
 
   if (jobsCancelled > 0) {
     state.events.push(
-      createEvent(state.tick, `Cancelled ${jobsCancelled} dig designation${jobsCancelled > 1 ? "s" : ""}`, "info")
+      createEvent(state.tick, `Cancelled ${jobsCancelled} designation${jobsCancelled > 1 ? "s" : ""}`, "info")
     );
     return true;
   } else {
     state.events.push(
-      createEvent(state.tick, "No unassigned dig designations in that area", "warning")
+      createEvent(state.tick, "No unassigned designations in that area", "warning")
     );
     return false;
   }
@@ -549,7 +567,7 @@ function handleBuildCommand(
 /**
  * Handle assign command - change dwarf's labor
  */
-const VALID_LABORS: Labor[] = ["mining", "carpentry", "brewing", "farming", "hauling"];
+const VALID_LABORS: Labor[] = ["mining", "woodcutting", "carpentry", "brewing", "farming", "hauling"];
 
 function handleAssignCommand(
   state: FortressState,
@@ -579,10 +597,51 @@ function handleAssignCommand(
     return false;
   }
 
+  // Cancel current job before changing labor (clears currentTask, drops carried items)
+  if (dwarf.currentJob) {
+    cancelJob(dwarf, state);
+  }
+
   dwarf.labor = labor as Labor;
   state.events.push(
     createEvent(state.tick, `${dwarf.name} assigned to ${labor}`, "info")
   );
 
   return true;
+}
+
+/**
+ * Create haul jobs for items on the ground that need to be moved to stockpiles
+ */
+function createHaulJobsForItems(state: FortressState): void {
+  for (const item of state.items) {
+    // Skip if being carried
+    if (item.carriedBy !== undefined) continue;
+
+    // Skip if already has a haul job
+    const existingJob = state.jobs.find(
+      j => j.type === "haul" && j.itemId === item.id
+    );
+    if (existingJob) continue;
+
+    // Find matching stockpile
+    // Stockpiles with matching subtype are preferred, but generic stockpiles (no subtype) accept all
+    const stockpileSubtype = item.type === "stone" ? "stone" : "wood";
+    let stockpile = state.buildings.find(
+      b => b.type === "stockpile" && b.subtype === stockpileSubtype
+    );
+    // Fall back to generic stockpile if no typed one exists
+    if (!stockpile) {
+      stockpile = state.buildings.find(
+        b => b.type === "stockpile" && !b.subtype
+      );
+    }
+
+    // No matching stockpile - item stays on ground
+    if (!stockpile) continue;
+
+    // Create haul job
+    const job = createHaulJob(item, stockpile.x, stockpile.y);
+    state.jobs.push(job);
+  }
 }

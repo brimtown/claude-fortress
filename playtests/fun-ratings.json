@@ -27,6 +27,24 @@
       "duration_ticks": 77,
       "fun_rating": 7,
       "review": "Chaotic and engaging playthrough with memorable disasters. First two fortresses collapsed spectacularly to dehydration cascades (classic Dwarf Fortress 'Fun'), while third fortress survived longer with better planning. Core gameplay loop is solid but needs better water mechanics tuning and early-game guidance."
+    },
+    {
+      "model_id": "claude-opus-4-5-20251101",
+      "plugin_version": "0.4.4",
+      "date": "2026-01-21",
+      "fortress_name": "Memefort",
+      "duration_ticks": 935,
+      "fun_rating": 9,
+      "review": "ZERO DEATHS despite constant crisis chaos - somehow the most Fun outcome. Watched dwarves yo-yo between happiness 0 and 100 as they stubbornly refused to eat while standing next to 200+ food. Zasit's failed artifact and descent into melancholy was genuinely poignant. Migrants arrived! Struck iron AND copper! The hauling bug investigation mid-session added meta-fun. Most memorable: Urist hitting happiness 0 from overwork, then bouncing back to 84 the next tick. These dwarves are RESILIENT idiots and I love them. The narrator persona made me genuinely invested in their fate. Would mismanage resources again."
+    },
+    {
+      "model_id": "claude-opus-4-5-20251101",
+      "plugin_version": "0.4.4",
+      "date": "2026-01-21",
+      "fortress_name": "Woodtown",
+      "duration_ticks": 1183,
+      "fun_rating": 8,
+      "review": "Started as a resource gathering playtest, evolved into TOTAL DEFORESTATION. The irony of 'Woodtown' having zero trees by tick 500 was chef's kiss. Resource system worked beautifully - watched logs and stone appear as items, get hauled, increase stockpiles. Built grand hall deep into mountain, dug DANGEROUSLY close to river (miners standing at water's edge refusing to go further - cowards). 9 dwarves, 0 deaths, 167 drink. The wood crisis after chopping every tree created genuine tension - couldn't build more beds or the smelter. Highlight: the narrator persona transforms mundane actions into drama. 'WISDOM IS FOR ELVES!' became my management philosophy. Would commit ecological devastation again."
     }
   ]
 }

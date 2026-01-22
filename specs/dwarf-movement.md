@@ -88,7 +88,8 @@ Dwarf movement follows this priority order:
 - If drink available: path to water or stockpile
 
 ### 4. Assigned Job
-- Path to job location
+- Path to job location (or stockpile for haul jobs in carry phase)
+- If carrying item, update item position after each move
 - Stay put once at location (job system handles work)
 
 ### 5. Idle (No Job)
@@ -132,6 +133,31 @@ function wander(state, dwarf): void {
 
 ## Special Movement Cases
 
+### Haul Jobs
+Movement target depends on haul phase:
+
+```typescript
+if (job.type === "haul" && (job.phase === "carry" || job.phase === "dropoff")) {
+  targetX = job.targetX;  // Stockpile
+  targetY = job.targetY;
+} else {
+  targetX = job.x;  // Item location
+  targetY = job.y;
+}
+```
+
+When carrying an item, the item position updates to match dwarf position after each move:
+
+```typescript
+if (dwarf.carriedItem !== undefined) {
+  const item = state.items.find(i => i.id === dwarf.carriedItem);
+  if (item) {
+    item.x = dwarf.x;
+    item.y = dwarf.y;
+  }
+}
+```
+
 ### Berserk Dwarves
 Handled in `moods.ts`, not `movement.ts`:
 - Find nearest living dwarf
@@ -149,8 +175,10 @@ Also handled in `moods.ts`:
 Current implementation is intentionally simple:
 - No A* or Dijkstra (greedy only)
 - No pathfinding around obstacles
-- May get stuck in concave areas
+- May get stuck in concave areas (mitigated by job abandonment after 40 ticks)
 - Sufficient for 40x20 map size
+
+See [dwarf-jobs](./dwarf-jobs.md) for job abandonment details.
 
 ## Constants
 

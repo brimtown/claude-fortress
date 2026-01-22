@@ -76,8 +76,11 @@ function getCellForPosition(
   // Check for dwarf at position
   const dwarfHere = state.dwarves.find((d) => d.x === x && d.y === y);
 
-  // Check for dig designation
-  const digJob = state.jobs.find((j) => j.type === "dig" && j.x === x && j.y === y);
+  // Check for designations (dig or chop)
+  const designation = state.jobs.find((j) => (j.type === "dig" || j.type === "chop") && j.x === x && j.y === y);
+
+  // Check for items on the ground (not being carried)
+  const itemHere = state.items?.find((i) => i.x === x && i.y === y && i.carriedBy === undefined);
 
   let char = getTileChar(tile);
   let color = "white";
@@ -99,7 +102,16 @@ function getCellForPosition(
         char = "\u25CB"; // ○
       }
     }
-  } else if (digJob && tile.type === "wall") {
+  } else if (itemHere) {
+    // Items on ground
+    if (itemHere.type === "stone") {
+      char = "*";
+      color = "gray";
+    } else if (itemHere.type === "log") {
+      char = "\u00B1"; // ±
+      color = "#8B4513"; // Brown
+    }
+  } else if (designation && (tile.type === "wall" || tile.type === "tree")) {
     char = "d";
     color = "yellow";
   } else {
@@ -371,7 +383,8 @@ export async function renderScreenshot(
     [{ char: "♣", color: "green", label: "=Tree" }, { char: "~", color: "cyan", label: "=Water" }],
     [{ char: "\u2020", color: "red", label: "=Corpse" }, { char: "X", color: "magenta", label: "=Workshop" }],
     [{ char: "M", color: "magenta", label: "=Mood" }, { char: "%", color: "green", label: "=Farm" }],
-    [{ char: "d", color: "yellow", label: "=Dig" }, { char: "", color: "white", label: "" }],
+    [{ char: "d", color: "yellow", label: "=Designated" }, { char: "*", color: "gray", label: "=Stone" }],
+    [{ char: "\u00B1", color: "#8B4513", label: "=Log" }, { char: "", color: "white", label: "" }],
   ];
 
   for (const row of legendItems) {

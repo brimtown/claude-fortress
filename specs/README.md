@@ -17,6 +17,8 @@ This directory contains specifications for game systems implemented in Claude Fo
 | [simulation-ui](./simulation-ui.md) | Modal UI system, keyboard shortcuts, colors, balance | 2026-01-18 |
 | [fortress-map](./fortress-map.md) | Procedural map generation with outdoor area and mountain | 2026-01-19 |
 | [fortress-settings](./fortress-settings.md) | User preferences and color mode persistence | 2026-01-19 |
+| [resource-gathering](./resource-gathering.md) | Mining, woodcutting, items, and hauling | 2026-01-21 |
+| [plugin-testing](./plugin-testing.md) | Testing strategy: unit, simulation, playthroughs | 2026-01-21 |
 
 ## Adding New Specs
 

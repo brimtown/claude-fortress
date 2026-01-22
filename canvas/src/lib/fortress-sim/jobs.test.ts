@@ -288,13 +288,17 @@ describe("workOnJob", () => {
     expect(state.map[5]![20]!.dug).toBe(true);
   });
 
-  test("completing dig job adds stone resource", () => {
-    const initialStone = state.resources.stone;
+  test("completing dig job spawns stone item", () => {
+    const initialItemCount = state.items.length;
 
     job.progress = 95;
     workOnJob(state, dwarf, job);
 
-    expect(state.resources.stone).toBe(initialStone + 1);
+    // Stone item should spawn at the dig location
+    expect(state.items.length).toBe(initialItemCount + 1);
+    const stoneItem = state.items.find(i => i.x === job.x && i.y === job.y);
+    expect(stoneItem).toBeDefined();
+    expect(stoneItem!.type).toBe("stone");
   });
 
   test("completed job is removed from queue", () => {

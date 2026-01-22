@@ -227,12 +227,20 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   total: currentState.jobs.length,
                   byType: {
                     dig: currentState.jobs.filter(j => j.type === "dig").length,
+                    chop: currentState.jobs.filter(j => j.type === "chop").length,
                     build: currentState.jobs.filter(j => j.type === "build").length,
+                    haul: currentState.jobs.filter(j => j.type === "haul").length,
                     produce: currentState.jobs.filter(j => j.type === "produce").length,
                   },
                   inaccessible: currentState.jobs.filter(
-                    j => j.type === "dig" && !isJobAccessible(currentState, j.x, j.y)
+                    j => (j.type === "dig" || j.type === "chop") && !isJobAccessible(currentState, j.x, j.y)
                   ).length,
+                };
+
+                // Count items on ground by type
+                const itemCounts = {
+                  stone: currentState.items.filter(i => i.type === "stone" && i.carriedBy === undefined).length,
+                  log: currentState.items.filter(i => i.type === "log" && i.carriedBy === undefined).length,
                 };
 
                 const summary: FortressSummary = {
@@ -245,6 +253,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
                   aliveCount: livingDwarves.length,
                   activeJobs: currentState.jobs.length,
                   jobs: jobBreakdown,
+                  items: itemCounts,
                   recentEvents: currentState.events.slice(-5),
                   dwarves: dwarfStatus,
                   buildings: buildingInfo,
@@ -545,8 +554,11 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         // Check if there's a dwarf at this position
         const dwarfHere = state.dwarves.find((d) => d.x === x && d.y === y);
 
-        // Check if there's a dig designation here
-        const digJob = state.jobs.find((j) => j.type === "dig" && j.x === x && j.y === y);
+        // Check if there's a designation here (dig or chop)
+        const designation = state.jobs.find((j) => (j.type === "dig" || j.type === "chop") && j.x === x && j.y === y);
+
+        // Check if there's an item on the ground (not being carried)
+        const itemHere = state.items.find((i) => i.x === x && i.y === y && i.carriedBy === undefined);
 
         let char = getTileChar(tile);
         let color: string = "white";
@@ -573,8 +585,17 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
               char = "○"; // Neutral face
             }
           }
-        } else if (digJob && tile?.type === "wall") {
-          // Dig designation: keep wall color, add yellow background highlight
+        } else if (itemHere) {
+          // Item on the ground - show item instead of tile
+          if (itemHere.type === "stone") {
+            char = "*";
+            color = "gray";
+          } else if (itemHere.type === "log") {
+            char = "±";
+            color = "#8B4513"; // Brown
+          }
+        } else if (designation && (tile?.type === "wall" || tile?.type === "tree")) {
+          // Dig/chop designation: keep tile color, add yellow background highlight
           color = getTileColor(tile.type, x, y, tile.resource, settings.colorMode);
           bgColor = "#3d3d00"; // Subtle dark yellow background
         } else {
@@ -1019,7 +1040,8 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           <Text><Text color="cyan">☺</Text><Text color="yellow">○</Text><Text color="red">☹</Text>=Dwarf <Text color="gray">#</Text>=Rock</Text>
           <Text><Text color="green">♣</Text>=Tree <Text color="cyan">~</Text>=Water</Text>
           <Text><Text color="magenta">X</Text>=Workshop <Text color="green">%</Text>=Farm</Text>
-          <Text><Text color="red">†</Text>=Corpse <Text color="gray" backgroundColor="#3d3d00">#</Text>=Dig</Text>
+          <Text><Text color="red">†</Text>=Corpse <Text color="gray">*</Text>=Stone <Text color="#8B4513">±</Text>=Log</Text>
+          <Text><Text backgroundColor="#3d3d00">#</Text>=Designated</Text>
         </Box>
       </Box>
 

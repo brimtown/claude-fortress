@@ -168,9 +168,30 @@ export function updateDwarfMovement(state: FortressState, dwarf: Dwarf): void {
 
   // PRIORITY: If dwarf has a job, path to the job location
   if (dwarf.currentJob) {
-    // Check if already at job location
-    if (dwarf.x !== dwarf.currentJob.x || dwarf.y !== dwarf.currentJob.y) {
-      moveToward(state, dwarf, dwarf.currentJob.x, dwarf.currentJob.y);
+    const job = dwarf.currentJob;
+
+    // For haul jobs in carry/dropoff phase, target is the stockpile
+    let targetX = job.x;
+    let targetY = job.y;
+    if (job.type === "haul" && (job.phase === "carry" || job.phase === "dropoff")) {
+      targetX = job.targetX!;
+      targetY = job.targetY!;
+    }
+
+    // Check if already at target location
+    if (dwarf.x !== targetX || dwarf.y !== targetY) {
+      const oldX = dwarf.x;
+      const oldY = dwarf.y;
+      moveToward(state, dwarf, targetX, targetY);
+
+      // If dwarf moved and is carrying an item, update item position
+      if ((dwarf.x !== oldX || dwarf.y !== oldY) && dwarf.carriedItem !== undefined) {
+        const item = state.items.find(i => i.id === dwarf.carriedItem);
+        if (item) {
+          item.x = dwarf.x;
+          item.y = dwarf.y;
+        }
+      }
       return;
     }
     // At job location - stay put and work (handled by jobs system)

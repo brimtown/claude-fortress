@@ -1,7 +1,10 @@
 // Fortress Canvas Types
 
 // UI View Modes for modal system
-export type ViewMode = "main" | "announcements" | "units" | "buildings" | "stocks" | "menu" | "settings";
+export type ViewMode = "main" | "announcements" | "units" | "buildings" | "stocks" | "menu" | "settings" | "designations" | "designating";
+
+// Designation types for unified designate command
+export type DesignationType = "dig" | "chop";
 
 export type TileType =
   | "wall"      // # - Solid stone
@@ -23,7 +26,18 @@ export interface Tile {
   resource?: "stone" | "iron" | "gold" | "copper";
 }
 
-export type Labor = "mining" | "carpentry" | "brewing" | "farming" | "hauling";
+// Physical items on the map that must be hauled
+export type ItemType = "stone" | "log";
+
+export interface Item {
+  id: number;
+  type: ItemType;
+  x: number;
+  y: number;
+  carriedBy?: number;  // Dwarf ID if being carried
+}
+
+export type Labor = "mining" | "woodcutting" | "carpentry" | "brewing" | "farming" | "hauling";
 
 export type DeathCause = "starvation" | "dehydration" | "insanity" | "berserk_attack";
 
@@ -99,11 +113,17 @@ export interface Dwarf {
   // Thoughts system - persistent memory affecting happiness
   thoughts?: Thought[];
   personality?: DwarfPersonality;
+
+  // Hauling system
+  carriedItem?: number;  // Item ID being carried
+
+  // Pathing - tracks ticks spent trying to reach a job
+  pathingTicks?: number;  // Ticks spent trying to reach current job
 }
 
 export interface Job {
   id: number;
-  type: "dig" | "build" | "haul" | "produce";
+  type: "dig" | "chop" | "build" | "haul" | "produce";
   x: number;
   y: number;
   progress: number;    // 0-100, work done on this job
@@ -115,6 +135,12 @@ export interface Job {
   // Production job fields
   outputType?: "food" | "drink";
   outputQuantity?: number;      // How much to produce (default 5)
+
+  // Haul job fields
+  targetX?: number;             // Stockpile destination
+  targetY?: number;
+  itemId?: number;              // Item being hauled
+  phase?: "pickup" | "carry" | "dropoff";
 }
 
 export interface Resources {
@@ -171,6 +197,7 @@ export interface FortressState {
   resources: Resources;
   buildings: Building[];
   jobs: Job[];          // Pending work designations
+  items: Item[];        // Physical items on the ground
   events: GameEvent[];
   tick: number;
   year: number;
@@ -181,6 +208,14 @@ export interface FortressState {
   // Losing system
   fallen: boolean;      // True when fortress has collapsed (all dead)
   wealth: number;       // Cached wealth for migration calculations
+
+  // Designation cursor for UI
+  designationCursor?: {
+    type: DesignationType;
+    x: number;
+    y: number;
+    anchor?: { x: number; y: number };
+  };
 }
 
 // Dwarf status for summary (lighter than full Dwarf)
@@ -211,8 +246,8 @@ export interface CrisisAlerts {
 // Lightweight summary for token-efficient polling (excludes map, minimizes dwarves)
 export interface JobBreakdown {
   total: number;
-  byType: { dig: number; build: number; produce: number };
-  inaccessible: number;  // Dig jobs that can't be worked yet (no adjacent floor)
+  byType: { dig: number; chop: number; build: number; haul: number; produce: number };
+  inaccessible: number;  // Dig/chop jobs that can't be worked yet (no adjacent floor)
 }
 
 export interface FortressSummary {
@@ -225,6 +260,7 @@ export interface FortressSummary {
   aliveCount: number;
   activeJobs: number;
   jobs: JobBreakdown;  // Detailed job queue info
+  items: { stone: number; log: number };  // Items on ground awaiting haul
   recentEvents: GameEvent[];  // Last 3-5 events only
 
   // Enhanced visibility for Claude
@@ -236,7 +272,7 @@ export interface FortressSummary {
 
 // Command types that Claude can send via IPC
 export type FortressCommand =
-  | { type: "dig"; area: { x: number; y: number; width: number; height: number } }
+  | { type: "designate"; designation: DesignationType; area: { x: number; y: number; width: number; height: number } }
   | { type: "build"; structure: "workshop" | "stockpile" | "bed" | "farm"; subtype?: string; location: { x: number; y: number } }
   | { type: "assign"; dwarfId: number; labor: Labor }
   | { type: "pause"; paused: boolean }
@@ -249,7 +285,8 @@ export interface TileInfo {
   y: number;
   type: TileType;
   resource?: "stone" | "iron" | "gold" | "copper";
-  designation?: "dig" | "channel";
+  designation?: DesignationType;
+  items?: ItemType[];  // Items on this tile
 }
 
 // Building info for inspect results
@@ -265,7 +302,7 @@ export interface JobInfo {
   id: number;
   x: number;
   y: number;
-  type: "dig" | "build" | "haul" | "produce";
+  type: "dig" | "chop" | "build" | "haul" | "produce";
   progress: number;
   assignedTo?: string;
 }

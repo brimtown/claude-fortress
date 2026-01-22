@@ -30,10 +30,11 @@ describe("createStartingDwarves", () => {
     const labors = dwarves.map((d) => d.labor);
 
     expect(labors.filter((l) => l === "mining").length).toBe(2);
+    expect(labors.filter((l) => l === "woodcutting").length).toBe(1);
     expect(labors.filter((l) => l === "carpentry").length).toBe(1);
     expect(labors.filter((l) => l === "brewing").length).toBe(1);
     expect(labors.filter((l) => l === "farming").length).toBe(1);
-    expect(labors.filter((l) => l === "hauling").length).toBe(2);
+    expect(labors.filter((l) => l === "hauling").length).toBe(1);
   });
 
   test("dwarves have valid positions in starting area", () => {

@@ -86,7 +86,8 @@ interface TileInfo {
   y: number;
   type: TileType;
   resource?: "stone" | "iron" | "gold" | "copper";
-  designation?: "dig" | "channel";
+  designation?: "dig" | "chop";
+  items?: ("stone" | "log")[];  // Items on this tile
 }
 
 interface BuildingInfo {
@@ -100,7 +101,7 @@ interface JobInfo {
   id: number;
   x: number;
   y: number;
-  type: "dig" | "build" | "haul" | "produce";
+  type: "dig" | "chop" | "build" | "haul" | "produce";
   progress: number;
   assignedTo?: string;  // Dwarf name
 }
@@ -152,10 +153,12 @@ Terminal-aesthetic rendering optimized for Claude's visual perception:
 | Wall | # | Gray |
 | Floor | . | Dark gray |
 | Water | ~ | Cyan |
-| Tree | ^ | Green |
-| Farm | % | Yellow |
-| Workshop | X | White |
-| Dig designation | d | Brown |
+| Tree | ♣ | Green |
+| Farm | % | Green |
+| Workshop | X | Magenta |
+| Stone item | * | Gray |
+| Log item | ± | Brown |
+| Designation | d | Yellow bg |
 
 > **Implementation**: Uses `@napi-rs/canvas` for PNG rendering. Replicates the same character/color logic from the Ink terminal renderer.
 
@@ -172,8 +175,14 @@ Year 126, Summer | Tick 1847 | ▶ Running
 |------|-------|------|-------|
 | 45   | 120   | 32   | 18    |
 
+## Items on Ground
+Stone: 3 | Logs: 2
+
 ## Population
-Total: 7 | Alive: 7 | Jobs: 3
+Total: 7 | Alive: 7
+
+## Jobs
+Dig: 2 | Chop: 1 | Build: 1 | Haul: 3 | Produce: 2
 
 ## Crises
 - **Starving**: Urist, Bomrek
@@ -181,11 +190,11 @@ Total: 7 | Alive: 7 | Jobs: 3
 - **In Mood**: none
 
 ## Dwarves
-| ID | Name   | Labor   | Pos  | Hunger | Thirst | Task     |
-|----|--------|---------|------|--------|--------|----------|
-| 1  | Urist  | mining  | 12,8 | 85     | 45     | digging  |
-| 2  | Bomrek | brewing | 5,3  | 82     | 20     | idle     |
-| 3  | Atis   | farming | 8,14 | 30     | 55     | planting |
+| ID | Name   | Labor      | Pos  | Hunger | Thirst | Happy | Task     |
+|----|--------|------------|------|--------|--------|-------|----------|
+| 1  | Urist  | mining     | 12,8 | 85     | 45     | 60    | mining   |
+| 2  | Bomrek | brewing    | 5,3  | 82     | 20     | 70    | idle     |
+| 3  | Atis   | woodcutting| 8,14 | 30     | 55     | 80    | chopping |
 
 ## Recent Events
 - [1842] ⚠ Urist is starving!
@@ -195,6 +204,10 @@ Total: 7 | Alive: 7 | Jobs: 3
 ## Statistics
 Deaths: 2 (1 starvation, 1 dehydration) | Peak: 9 | Artifacts: 0
 ```
+
+**Sections:**
+- **Items on Ground**: Only appears when items exist (stone/logs awaiting haul)
+- **Jobs**: Shows all job types with counts (dig, chop, build, haul, produce)
 
 > **Implementation**: `lib/markdown-formatter.ts` handles conversion. Markdown tables eliminate repeated JSON keys - estimate ~40% token reduction for typical summaries.
 
@@ -218,13 +231,33 @@ interface FortressSummary {
     drink: number;
   };
 
+  // Items on ground (awaiting haul)
+  items: {
+    stone: number;  // Stone items not being carried
+    log: number;    // Log items not being carried
+  };
+
   // Population counts
   dwarfCount: number;      // Total (living + dead)
   aliveCount: number;      // Living only
   activeJobs: number;      // Pending work
 
+  // Job breakdown
+  jobs: {
+    total: number;
+    byType: {
+      dig: number;
+      chop: number;
+      build: number;
+      haul: number;
+      produce: number;
+    };
+    inaccessible: number;  // Dig/chop jobs with no adjacent walkable tile
+  };
+
   // Detailed views
   dwarves: DwarfStatus[];
+  buildings: BuildingInfo[];
   crises: CrisisAlerts;
   statistics: FortressStatistics;
   recentEvents: GameEvent[];  // Last 5 events
