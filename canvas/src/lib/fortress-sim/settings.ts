@@ -14,10 +14,18 @@ const SETTINGS_PATH = join(SETTINGS_DIR, "fortress-settings.json");
 export type ColorMode = "full" | "theme";
 
 /**
+ * Render mode for tile characters
+ * - "terminal": ASCII/Unicode characters (♣, #, ~)
+ * - "emoji": Emoji characters (🌲, 🪨, 🌊)
+ */
+export type RenderMode = "terminal" | "emoji";
+
+/**
  * User settings for Claude Fortress
  */
 export interface FortressSettings {
   colorMode: ColorMode;
+  renderMode: RenderMode;
 }
 
 /**
@@ -25,6 +33,7 @@ export interface FortressSettings {
  */
 export const DEFAULT_SETTINGS: FortressSettings = {
   colorMode: "full", // Default to full color for consistency
+  renderMode: "terminal", // Default to ASCII/Unicode characters
 };
 
 /**

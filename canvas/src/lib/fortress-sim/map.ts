@@ -1,4 +1,6 @@
 import type { Tile, TileType } from "../../scenarios/fortress/types";
+import type { RenderMode } from "./settings";
+import { getEmojiWidths, getPaddedEmoji, getMaxEmojiWidth, type EmojiWidths } from "../emoji-width";
 
 const MAP_WIDTH = 40;
 const MAP_HEIGHT = 20;
@@ -178,38 +180,142 @@ export function generateMap(seed?: number): Tile[][] {
   return map;
 }
 
+// Terminal mode characters (ASCII/Unicode)
+const TERMINAL_CHARS: Record<TileType, string> = {
+  wall: "#",
+  floor: ".",
+  water: "~",
+  tree: "♣",
+  grass: ",",
+  soil: "·",
+  door: "+",
+  workshop: "X",
+  stockpile: "≈",
+  bed: "=",
+  farm: "%",
+  corpse: "†",
+};
+
+// Emoji mode characters - minimal for terrain, emoji for interactive
+const EMOJI_CHARS: Record<TileType, string> = {
+  wall: "⬛",
+  floor: "　",  // Full-width space (U+3000)
+  water: "💧",
+  tree: "🌲",
+  grass: "　",  // Full-width space (U+3000)
+  soil: "　",   // Full-width space (U+3000)
+  door: "🚪",
+  workshop: "🏭",
+  stockpile: "📦",
+  bed: "🛏",  // Without variation selector
+  farm: "🌾",
+  corpse: "💀",
+};
+
+// Cached width info
+let emojiWidthCache: EmojiWidths | null = null;
+let maxWidthCache: number = 2;
+
 /**
- * Get ASCII character for tile type
+ * Initialize emoji width cache
  */
-export function getTileChar(tile: Tile): string {
-  switch (tile.type) {
-    case "wall":
-      return "#";
-    case "floor":
-      return ".";
-    case "water":
-      return "~";
-    case "tree":
-      return "♣";
-    case "grass":
-      return ",";
-    case "soil":
-      return "·";
-    case "door":
-      return "+";
-    case "workshop":
-      return "X";
-    case "stockpile":
-      return "≈";
-    case "bed":
-      return "=";
-    case "farm":
-      return "%";
-    case "corpse":
-      return "†";
-    default:
-      return "?";
+export function initEmojiWidths(): void {
+  emojiWidthCache = getEmojiWidths();
+  maxWidthCache = getMaxEmojiWidth(emojiWidthCache);
+}
+
+/**
+ * Get width-normalized emoji (padded to max width)
+ */
+export function getNormalizedEmoji(emoji: string): string {
+  if (!emojiWidthCache) {
+    emojiWidthCache = getEmojiWidths();
+    maxWidthCache = getMaxEmojiWidth(emojiWidthCache);
   }
+  return getPaddedEmoji(emoji, emojiWidthCache, maxWidthCache);
+}
+
+/**
+ * Get character for tile type based on render mode
+ * Set normalize=true to get width-padded emoji (requires prior measurement)
+ */
+export function getTileChar(tile: Tile, renderMode: RenderMode = "terminal", normalize = false): string {
+  const chars = renderMode === "emoji" ? EMOJI_CHARS : TERMINAL_CHARS;
+  const char = chars[tile.type] ?? "?";
+
+  if (normalize && renderMode === "emoji") {
+    return getNormalizedEmoji(char);
+  }
+
+  return char;
+}
+
+// Dwarf characters by mood state
+const DWARF_TERMINAL_CHARS = {
+  happy: "☺",
+  neutral: "○",
+  sad: "☹",
+  mood: "M",
+  dead: "†",
+};
+
+const DWARF_EMOJI_CHARS = {
+  happy: "😺",
+  neutral: "🐱",
+  sad: "😿",
+  mood: "😈",
+  dead: "💀",
+};
+
+/**
+ * Get dwarf character based on state and render mode
+ */
+export function getDwarfChar(
+  happiness: number,
+  moodState: string | undefined,
+  alive: boolean,
+  renderMode: RenderMode = "terminal",
+  normalize = false
+): string {
+  const chars = renderMode === "emoji" ? DWARF_EMOJI_CHARS : DWARF_TERMINAL_CHARS;
+
+  let char: string;
+  if (!alive) char = chars.dead;
+  else if (moodState && moodState !== "normal") char = chars.mood;
+  else if (happiness < 30) char = chars.sad;
+  else if (happiness > 70) char = chars.happy;
+  else char = chars.neutral;
+
+  if (normalize && renderMode === "emoji") {
+    return getNormalizedEmoji(char);
+  }
+
+  return char;
+}
+
+// Item characters
+const ITEM_TERMINAL_CHARS: Record<string, string> = {
+  stone: "*",
+  log: "±",
+};
+
+const ITEM_EMOJI_CHARS: Record<string, string> = {
+  stone: "🪨",
+  log: "🪵",
+};
+
+/**
+ * Get item character based on type and render mode
+ */
+export function getItemChar(itemType: string, renderMode: RenderMode = "terminal", normalize = false): string {
+  const chars = renderMode === "emoji" ? ITEM_EMOJI_CHARS : ITEM_TERMINAL_CHARS;
+  const char = chars[itemType] ?? "?";
+
+  if (normalize && renderMode === "emoji") {
+    return getNormalizedEmoji(char);
+  }
+
+  return char;
 }
 
 /**

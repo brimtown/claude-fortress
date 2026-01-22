@@ -3,9 +3,10 @@
 
 import { createCanvas } from "@napi-rs/canvas";
 import type { FortressState, Dwarf } from "../scenarios/fortress/types";
-import { getTileChar } from "./fortress-sim/map";
+import { getTileChar, getDwarfChar, getItemChar } from "./fortress-sim/map";
 import type { Viewport } from "../ipc/types";
 import { getScreenshotPath } from "../platform";
+import { loadSettingsSync, type RenderMode } from "./fortress-sim/settings";
 
 // Terminal color names to RGB hex (includes bright variants)
 const TERMINAL_COLORS: Record<string, string> = {
@@ -68,7 +69,8 @@ interface ScreenshotResult {
 function getCellForPosition(
   state: FortressState,
   x: number,
-  y: number
+  y: number,
+  renderMode: RenderMode = "terminal"
 ): RenderCell {
   const tile = state.map[y]?.[x];
   if (!tile) return { char: "?", color: "white" };
@@ -82,35 +84,23 @@ function getCellForPosition(
   // Check for items on the ground (not being carried)
   const itemHere = state.items?.find((i) => i.x === x && i.y === y && i.carriedBy === undefined);
 
-  let char = getTileChar(tile);
+  let char = getTileChar(tile, renderMode);
   let color = "white";
 
   if (dwarfHere) {
+    // Use helper for dwarf character based on render mode
+    char = getDwarfChar(dwarfHere.happiness, dwarfHere.moodState, dwarfHere.alive, renderMode);
     if (!dwarfHere.alive) {
-      char = "\u2020"; // †
       color = "red";
+    } else if (dwarfHere.moodState && dwarfHere.moodState !== "normal") {
+      color = "magenta";
     } else {
       color = DWARF_COLORS[dwarfHere.id % DWARF_COLORS.length] ?? "white";
-      if (dwarfHere.moodState && dwarfHere.moodState !== "normal") {
-        char = "M";
-        color = "magenta";
-      } else if (dwarfHere.happiness < 30) {
-        char = "\u2639"; // ☹
-      } else if (dwarfHere.happiness > 70) {
-        char = "\u263A"; // ☺
-      } else {
-        char = "\u25CB"; // ○
-      }
     }
   } else if (itemHere) {
-    // Items on ground
-    if (itemHere.type === "stone") {
-      char = "*";
-      color = "gray";
-    } else if (itemHere.type === "log") {
-      char = "\u00B1"; // ±
-      color = "#8B4513"; // Brown
-    }
+    // Use helper for item character based on render mode
+    char = getItemChar(itemHere.type, renderMode);
+    color = itemHere.type === "stone" ? "gray" : "#8B4513";
   } else if (designation && (tile.type === "wall" || tile.type === "tree")) {
     char = "d";
     color = "yellow";
@@ -157,7 +147,8 @@ function getCellForPosition(
  */
 function buildMapGrid(
   state: FortressState,
-  viewport?: Viewport
+  viewport?: Viewport,
+  renderMode: RenderMode = "terminal"
 ): RenderCell[][] {
   const startX = viewport?.x ?? 0;
   const startY = viewport?.y ?? 0;
@@ -169,7 +160,7 @@ function buildMapGrid(
   for (let y = 0; y < height; y++) {
     const row: RenderCell[] = [];
     for (let x = 0; x < width; x++) {
-      const cell = getCellForPosition(state, startX + x, startY + y);
+      const cell = getCellForPosition(state, startX + x, startY + y, renderMode);
       row.push(cell);
     }
     grid.push(row);
@@ -226,8 +217,15 @@ export async function renderScreenshot(
   const mapWidth = viewport?.width ?? MAP_WIDTH;
   const mapHeight = viewport?.height ?? MAP_HEIGHT;
 
+  // Load settings for render mode
+  const settings = loadSettingsSync();
+  const renderMode = settings.renderMode ?? "terminal";
+
+  // Emoji mode uses wider cells (emojis are typically 2 chars wide)
+  const cellWidth = renderMode === "emoji" ? CELL_WIDTH * 2 : CELL_WIDTH;
+
   // Calculate canvas dimensions (with grid labels)
-  const contentWidth = GRID_LABEL_WIDTH + (mapWidth * CELL_WIDTH) + (LEGEND_WIDTH * CELL_WIDTH);
+  const contentWidth = GRID_LABEL_WIDTH + (mapWidth * cellWidth) + (LEGEND_WIDTH * CELL_WIDTH);
   const contentHeight = (HEADER_HEIGHT * CELL_HEIGHT) + GRID_LABEL_HEIGHT + (mapHeight * CELL_HEIGHT) + CELL_HEIGHT;
   const canvasWidth = contentWidth + (PADDING * 2);
   const canvasHeight = contentHeight + (PADDING * 2);
@@ -307,7 +305,7 @@ export async function renderScreenshot(
   y += CELL_HEIGHT * 1.5;
 
   // === MAP ===
-  const mapGrid = buildMapGrid(state, viewport);
+  const mapGrid = buildMapGrid(state, viewport, renderMode);
   const mapStartX = PADDING + GRID_LABEL_WIDTH;
   const mapStartY = y + GRID_LABEL_HEIGHT;
   const viewportStartX = viewport?.x ?? 0;
@@ -317,7 +315,7 @@ export async function renderScreenshot(
   ctx.font = `11px monospace`;
   for (let col = 0; col <= mapWidth; col += 10) {
     const label = String(viewportStartX + col);
-    const labelX = mapStartX + col * CELL_WIDTH;
+    const labelX = mapStartX + col * cellWidth;
     ctx.fillStyle = "#FFFF00"; // Bright yellow
     ctx.fillText(label, labelX, mapStartY - 4);
   }
@@ -339,7 +337,7 @@ export async function renderScreenshot(
   ctx.strokeRect(
     mapStartX - 2,
     mapStartY - 2,
-    mapWidth * CELL_WIDTH + 4,
+    mapWidth * cellWidth + 4,
     mapHeight * CELL_HEIGHT + 4
   );
 
@@ -353,14 +351,14 @@ export async function renderScreenshot(
       ctx.fillStyle = colorToRGB(cell.color);
       ctx.fillText(
         cell.char,
-        mapStartX + col * CELL_WIDTH,
+        mapStartX + col * cellWidth,
         mapStartY + row * CELL_HEIGHT
       );
     }
   }
 
   // === LEGEND ===
-  const legendStartX = mapStartX + mapWidth * CELL_WIDTH + 20;
+  const legendStartX = mapStartX + mapWidth * cellWidth + 20;
   let legendY = mapStartY;
 
   // Legend border
@@ -376,7 +374,17 @@ export async function renderScreenshot(
   ctx.fillText("MAP", legendStartX, legendY);
   legendY += CELL_HEIGHT;
 
-  const legendItems = [
+  // Legend items vary based on render mode
+  const legendItems = renderMode === "emoji" ? [
+    [{ char: "😺", color: "cyan", label: "=Happy" }, { char: "⬛", color: "gray", label: "=Wall" }],
+    [{ char: "🐱", color: "yellow", label: "=Meh" }, { char: "⬜", color: "white", label: "=Floor" }],
+    [{ char: "😿", color: "red", label: "=Sad" }, { char: "🟩", color: "green", label: "=Grass" }],
+    [{ char: "🌲", color: "green", label: "=Tree" }, { char: "💧", color: "cyan", label: "=Water" }],
+    [{ char: "💀", color: "red", label: "=Corpse" }, { char: "🏭", color: "magenta", label: "=Workshop" }],
+    [{ char: "😈", color: "magenta", label: "=Mood" }, { char: "🌾", color: "green", label: "=Farm" }],
+    [{ char: "d", color: "yellow", label: "=Designated" }, { char: "🪨", color: "gray", label: "=Stone" }],
+    [{ char: "🪵", color: "#8B4513", label: "=Log" }, { char: "", color: "white", label: "" }],
+  ] : [
     [{ char: "\u263A", color: "cyan", label: "=Happy" }, { char: "#", color: "gray", label: "=Wall" }],
     [{ char: "\u25CB", color: "yellow", label: "=Meh" }, { char: ".", color: "white", label: "=Floor" }],
     [{ char: "\u2639", color: "red", label: "=Sad" }, { char: ",", color: "greenBright", label: "=Grass" }],

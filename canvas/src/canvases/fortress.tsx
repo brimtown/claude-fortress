@@ -18,7 +18,7 @@ import {
   getDwarfColor,
 } from "./fortress/colors";
 import { createInitialState, processTick, handleCommand } from "../lib/fortress-sim/engine";
-import { getTileChar } from "../lib/fortress-sim/map";
+import { getTileChar, getDwarfChar, getItemChar } from "../lib/fortress-sim/map";
 import { getAverageHappiness, getDwarfMood, getLivingDwarfCount } from "../lib/fortress-sim/dwarf";
 import { getTopThoughts } from "../lib/fortress-sim/thoughts";
 import { saveFortress, loadFortress } from "../lib/fortress-sim/save";
@@ -34,6 +34,7 @@ import {
   saveSettings,
   type FortressSettings,
   type ColorMode,
+  type RenderMode,
 } from "../lib/fortress-sim/settings";
 
 interface Props {
@@ -63,6 +64,9 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
   // Units view selection state
   const [unitSelection, setUnitSelection] = useState(0);
   const [unitDetailView, setUnitDetailView] = useState(false);
+
+  // Settings view selection state (0 = color mode, 1 = render mode)
+  const [settingsSelection, setSettingsSelection] = useState(0);
 
   // Debug logging helper
   const debugLog = (...args: unknown[]) => {
@@ -395,6 +399,14 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
     saveSettings(newSettings).catch((e) => debugLog("Settings save error:", e));
   };
 
+  // Toggle render mode setting
+  const toggleRenderMode = () => {
+    const newMode: RenderMode = settings.renderMode === "terminal" ? "emoji" : "terminal";
+    const newSettings = { ...settings, renderMode: newMode };
+    setSettings(newSettings);
+    saveSettings(newSettings).catch((e) => debugLog("Settings save error:", e));
+  };
+
   // Handle keyboard input
   useInput((input, key) => {
     // ESC key navigation
@@ -447,8 +459,20 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
 
     // Settings navigation
     if (viewMode === "settings") {
+      if (key.upArrow) {
+        setSettingsSelection((prev) => (prev - 1 + 2) % 2);
+        return;
+      }
+      if (key.downArrow) {
+        setSettingsSelection((prev) => (prev + 1) % 2);
+        return;
+      }
       if (key.leftArrow || key.rightArrow || key.return || input === " ") {
-        toggleColorMode();
+        if (settingsSelection === 0) {
+          toggleColorMode();
+        } else {
+          toggleRenderMode();
+        }
         return;
       }
       return; // Don't process other keys in settings mode
@@ -541,6 +565,7 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
   // Render map with colors
   const renderMap = () => {
     const lines: React.ReactNode[] = [];
+    const { renderMode } = settings;
 
     for (let y = 0; y < state.map.length; y++) {
       const chars: React.ReactNode[] = [];
@@ -560,44 +585,38 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         // Check if there's an item on the ground (not being carried)
         const itemHere = state.items.find((i) => i.x === x && i.y === y && i.carriedBy === undefined);
 
-        let char = getTileChar(tile);
+        let char = getTileChar(tile, renderMode);
         let color: string = "white";
 
         let bgColor: string | undefined = undefined;
 
         if (dwarfHere) {
+          // Use helper for dwarf character based on render mode
+          char = getDwarfChar(dwarfHere.happiness, dwarfHere.moodState, dwarfHere.alive, renderMode);
           if (!dwarfHere.alive) {
-            // Dead dwarf = corpse
-            char = "†";
             color = "red";
+          } else if (dwarfHere.moodState && dwarfHere.moodState !== "normal") {
+            color = "magenta";
           } else {
-            // Each dwarf gets their own color based on ID
             color = getDwarfColor(dwarfHere.id, settings.colorMode);
-            // Face shows mood or strange mood state
-            if (dwarfHere.moodState && dwarfHere.moodState !== "normal") {
-              char = "M"; // In a strange mood!
-              color = "magenta";
-            } else if (dwarfHere.happiness < 30) {
-              char = "☹"; // Sad face
-            } else if (dwarfHere.happiness > 70) {
-              char = "☺"; // Happy face
-            } else {
-              char = "○"; // Neutral face
-            }
           }
         } else if (itemHere) {
-          // Item on the ground - show item instead of tile
-          if (itemHere.type === "stone") {
-            char = "*";
-            color = "gray";
-          } else if (itemHere.type === "log") {
-            char = "±";
-            color = "#8B4513"; // Brown
-          }
+          // Use helper for item character based on render mode
+          char = getItemChar(itemHere.type, renderMode);
+          color = itemHere.type === "stone" ? "gray" : "#8B4513";
         } else if (designation && (tile?.type === "wall" || tile?.type === "tree")) {
-          // Dig/chop designation: keep tile color, add yellow background highlight
-          color = getTileColor(tile.type, x, y, tile.resource, settings.colorMode);
-          bgColor = "#3d3d00"; // Subtle dark yellow background
+          // Dig/chop designation - blink between emoji and underlying tile
+          const showDesignation = Math.floor(state.tick / 2) % 2 === 0; // Blink every 2 ticks
+
+          if (renderMode === "emoji" && showDesignation) {
+            // Show pick or axe emoji
+            char = designation.type === "dig" ? "⛏️" : "🪓";
+            color = "yellow";
+          } else {
+            // Show underlying tile with highlight
+            color = getTileColor(tile.type, x, y, tile.resource, settings.colorMode);
+            bgColor = "#3d3d00"; // Subtle dark yellow background
+          }
         } else {
           // Color tiles by type with position-based variation
           color = getTileColor(tile.type, x, y, tile.resource, settings.colorMode);
@@ -924,14 +943,24 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
       >
         <Text bold color="yellow">SETTINGS</Text>
         <Text> </Text>
-        <Text>
-          Color Mode:{" "}
+        <Text color={settingsSelection === 0 ? "white" : "gray"} inverse={settingsSelection === 0}>
+          {settingsSelection === 0 ? "► " : "  "}Color Mode:{" "}
           <Text color={settings.colorMode === "full" ? "cyan" : "gray"}>
             {settings.colorMode === "full" ? "[Full Color]" : " Full Color "}
           </Text>
           {" / "}
           <Text color={settings.colorMode === "theme" ? "cyan" : "gray"}>
             {settings.colorMode === "theme" ? "[Theme]" : " Theme "}
+          </Text>
+        </Text>
+        <Text color={settingsSelection === 1 ? "white" : "gray"} inverse={settingsSelection === 1}>
+          {settingsSelection === 1 ? "► " : "  "}Render Mode:{" "}
+          <Text color={settings.renderMode === "terminal" ? "cyan" : "gray"}>
+            {settings.renderMode === "terminal" ? "[Terminal]" : " Terminal "}
+          </Text>
+          {" / "}
+          <Text color={settings.renderMode === "emoji" ? "cyan" : "gray"}>
+            {settings.renderMode === "emoji" ? "[Emoji]" : " Emoji "}
           </Text>
         </Text>
         <Text> </Text>
@@ -941,8 +970,14 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
         <Text dimColor>
           Theme: Uses terminal ANSI colors (respects your theme)
         </Text>
+        <Text dimColor>
+          Terminal: ASCII/Unicode characters (♣ # ~)
+        </Text>
+        <Text dimColor>
+          Emoji: Emoji characters (🌲 🪨 🌊)
+        </Text>
         <Text> </Text>
-        <Text dimColor>Left/Right or Enter to toggle, ESC to go back</Text>
+        <Text dimColor>↑/↓ select | Left/Right/Enter to toggle | ESC to go back</Text>
       </Box>
     </Box>
   );
@@ -955,9 +990,11 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
   if (viewMode === "buildings") return <BuildingsView />;
   if (viewMode === "stocks") return <StocksView />;
 
-  // Main view
+  // Main view - emoji mode needs more width (40 cols × 2 chars = 80, plus borders)
+  const mainWidth = settings.renderMode === "emoji" ? 115 : 80;
+
   return (
-    <Box flexDirection="column" width={80}>
+    <Box flexDirection="column" width={mainWidth}>
       {/* Header with background */}
       <Box borderStyle="round" borderColor="cyan" paddingX={1}>
         <Text bold color="cyan">
@@ -1037,11 +1074,22 @@ export function FortressCanvas({ id, config, socketPath, scenario }: Props) {
           <Text> </Text>
           {/* Legend */}
           <Text bold color="cyan">LEGEND</Text>
-          <Text><Text color="cyan">☺</Text><Text color="yellow">○</Text><Text color="red">☹</Text>=Dwarf <Text color="gray">#</Text>=Rock</Text>
-          <Text><Text color="green">♣</Text>=Tree <Text color="cyan">~</Text>=Water</Text>
-          <Text><Text color="magenta">X</Text>=Workshop <Text color="green">%</Text>=Farm</Text>
-          <Text><Text color="red">†</Text>=Corpse <Text color="gray">*</Text>=Stone <Text color="#8B4513">±</Text>=Log</Text>
-          <Text><Text backgroundColor="#3d3d00">#</Text>=Designated</Text>
+          {settings.renderMode === "emoji" ? (
+            <>
+              <Text><Text color="cyan">😺</Text><Text color="yellow">🐱</Text><Text color="red">😿</Text>=Dwarf <Text color="gray">⬛</Text>=Rock</Text>
+              <Text><Text color="green">🌲</Text>=Tree <Text color="cyan">💧</Text>=Water</Text>
+              <Text><Text color="magenta">🏭</Text>=Workshop <Text color="green">🌾</Text>=Farm</Text>
+              <Text><Text color="red">💀</Text>=Corpse <Text color="yellow">⛏️</Text>=Dig <Text color="yellow">🪓</Text>=Chop</Text>
+            </>
+          ) : (
+            <>
+              <Text><Text color="cyan">☺</Text><Text color="yellow">○</Text><Text color="red">☹</Text>=Dwarf <Text color="gray">#</Text>=Rock</Text>
+              <Text><Text color="green">♣</Text>=Tree <Text color="cyan">~</Text>=Water</Text>
+              <Text><Text color="magenta">X</Text>=Workshop <Text color="green">%</Text>=Farm</Text>
+              <Text><Text color="red">†</Text>=Corpse <Text color="gray">*</Text>=Stone <Text color="#8B4513">±</Text>=Log</Text>
+              <Text><Text backgroundColor="#3d3d00">#</Text>=Designated</Text>
+            </>
+          )}
         </Box>
       </Box>
 

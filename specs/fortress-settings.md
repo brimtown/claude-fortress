@@ -22,9 +22,11 @@ Directory is created if it doesn't exist.
 ```typescript
 interface FortressSettings {
   colorMode: ColorMode;
+  renderMode: RenderMode;
 }
 
 type ColorMode = "full" | "theme";
+type RenderMode = "terminal" | "emoji";
 ```
 
 ### Color Mode
@@ -37,6 +39,17 @@ type ColorMode = "full" | "theme";
 Default: `full`
 
 **Rationale**: Some terminal themes (especially base16) map multiple ANSI colors to the same value, making grass and trees indistinguishable. Hex colors bypass this issue.
+
+### Render Mode
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `terminal` | ASCII/Unicode characters (`♣`, `#`, `~`) | Classic roguelike appearance |
+| `emoji` | Emoji characters (`🌲`, `🪨`, `🌊`) | Modern, visually distinct tiles |
+
+Default: `terminal`
+
+**Note**: Emoji mode uses wider characters (typically 2 columns per character in terminals).
 
 ## Color Definitions
 
@@ -66,6 +79,31 @@ Default: `full`
 Uses named ANSI colors that terminals can remap:
 - `green`, `greenBright`, `blue`, `gray`, `white`, `yellow`, `magenta`, `cyan`, `red`
 
+### Emoji Mode Characters
+
+Full emoji mode with consistent character widths.
+
+| Element | Emoji |
+|---------|-------|
+| Wall/Rock | ⬛ |
+| Floor | ⬜ |
+| Grass | 🟩 |
+| Soil | 🟫 |
+| Water | 💧 |
+| Tree | 🌲 |
+| Door | 🚪 |
+| Workshop | 🏭 |
+| Stockpile | 📦 |
+| Bed | 🛏️ |
+| Farm | 🌾 |
+| Corpse | 💀 |
+| Dwarf (happy) | 😺 |
+| Dwarf (neutral) | 🐱 |
+| Dwarf (sad) | 😿 |
+| Dwarf (mood) | 😈 |
+| Stone (item) | 🪨 |
+| Log (item) | 🪵 |
+
 ## In-Game Settings Menu
 
 Access via ESC key → Settings:
@@ -74,13 +112,16 @@ Access via ESC key → Settings:
 ┌─────────────────────────────────────────────┐
 │ SETTINGS                                    │
 │                                             │
-│ Color mode: [Full Color] [Theme Colors]     │
+│ ► Color Mode:  [Full Color] / Theme         │
+│   Render Mode: [Terminal] / Emoji           │
 │                                             │
+│ ↑/↓ select | Left/Right/Enter to toggle     │
 │ ESC: back                                   │
 └─────────────────────────────────────────────┘
 ```
 
-- Arrow keys (←/→) to switch modes
+- Arrow keys (↑/↓) to select setting
+- Arrow keys (←/→) or Enter to toggle selected setting
 - Changes apply immediately and persist to disk
 
 ## API
@@ -110,6 +151,7 @@ Creates `~/.claude/` directory if needed.
 ```typescript
 const DEFAULT_SETTINGS: FortressSettings = {
   colorMode: "full",
+  renderMode: "terminal",
 };
 ```
 
