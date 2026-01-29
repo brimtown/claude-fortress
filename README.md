@@ -8,12 +8,12 @@
 
 ## Install
 
-**Easiest:** Paste this URL into Claude Code and ask it to install the plugin:
+**Easiest:** Paste this URL into Claude Code and ask it to install the dependencies:
 ```
 https://github.com/brimtown/claude-fortress
 ```
 
-Claude will handle dependencies and setup for your platform.
+Claude will handle dependencies and setup for your platform. Proceed to **Add the Plugin** below.
 
 ---
 
@@ -62,13 +62,13 @@ Run Claude Code from inside WSL (`wsl` → `claude`).
 In Claude Code:
 ```
 /plugin marketplace add brimtown/claude-fortress
-/plugin install claude-fortress
+/plugin install claude-fortress@claude-fortress
 ```
 
-### Update the Plugin
+### Update the Marketplace
 
 ```
-/plugin update claude-fortress@brimtown/claude-fortress
+/plugin marketplace update claude-fortress
 ```
 
 ### Enable Auto-Updates
